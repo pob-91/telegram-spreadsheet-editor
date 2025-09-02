@@ -34,8 +34,14 @@ func (r *DataRoutes) AddValueForCategory(resp http.ResponseWriter, req *http.Req
 		return
 	}
 
-	if err := r.SpreadsheetService.AddValueForCategory(spreadsheet, request.Category, request.Value); err != nil {
+	modified, err := r.SpreadsheetService.AddValueForCategory(spreadsheet, request.Category, request.Value)
+	if err != nil {
 		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := r.DataService.WriteSpreadsheet(modified); err != nil {
+		resp.WriteHeader(http.StatusFailedDependency)
 		return
 	}
 

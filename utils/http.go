@@ -12,7 +12,7 @@ import (
 
 type IHttpClient interface {
 	Get(url string, responseBody any, opts ...*HttpOptions) (*HttpResponse, error)
-	Post(url string, body any, responseBody any, opts ...*HttpOptions) (*HttpResponse, error)
+	Put(url string, body *bytes.Buffer, responseBody any, opts ...*HttpOptions) (*HttpResponse, error)
 }
 
 type HttpClient struct{}
@@ -29,6 +29,7 @@ type HttpOptions struct {
 	Headers           *map[string]string
 	BasicAuthUser     *string
 	BasicAuthPassword *string
+	ContentType       string
 }
 
 func (h *HttpClient) Get(url string, responseBody any, opts ...*HttpOptions) (*HttpResponse, error) {
@@ -109,36 +110,27 @@ func (h *HttpClient) Get(url string, responseBody any, opts ...*HttpOptions) (*H
 	return &r, nil
 }
 
-func (h *HttpClient) Post(url string, body any, responseBody any, opts ...*HttpOptions) (*HttpResponse, error) {
-	return h.performRequestWithBody("POST", url, body, responseBody, opts...)
-}
-
-// private
-
-func (h *HttpClient) performRequestWithBody(verb string, url string, body any, responseBody any, opts ...*HttpOptions) (*HttpResponse, error) {
+func (h *HttpClient) Put(url string, body *bytes.Buffer, responseBody any, opts ...*HttpOptions) (*HttpResponse, error) {
 	options := HttpOptions{}
 	if len(opts) > 0 {
 		options = *opts[0]
 	}
 
-	var reader io.Reader
-	jsonBytes, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	reader = bytes.NewBuffer(jsonBytes)
-
-	req, err := http.NewRequest(verb, url, reader)
+	req, err := http.NewRequest("PUT", url, body)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", options.ContentType)
 
 	if options.Headers != nil {
 		for key, value := range *options.Headers {
 			req.Header.Set(key, value)
 		}
+	}
+
+	if options.BasicAuthUser != nil && options.BasicAuthPassword != nil {
+		req.SetBasicAuth(*options.BasicAuthUser, *options.BasicAuthPassword)
 	}
 
 	response, err := http.DefaultClient.Do(req)
