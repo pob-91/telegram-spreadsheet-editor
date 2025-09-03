@@ -17,6 +17,11 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+const (
+	BOT_TOKEN_KEY string = "TELEGRAM_BOT_TOKEN"
+	HOST_KEY      string = "SERVICE_HOST"
+)
+
 func setupLogger() {
 	var encoding string
 	var encoderCfg zapcore.EncoderConfig
@@ -79,13 +84,14 @@ func main() {
 	}
 
 	// set up telegram bot
-	token := os.Getenv("TELEGRAM_BOT_TOKEN")
+	token := os.Getenv(BOT_TOKEN_KEY)
 	bot, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		zap.L().Panic("Failed to init new telegram bot", zap.Error(err))
 	}
 
-	wh, err := tgbotapi.NewWebhook(fmt.Sprintf("https://1200e6fc0ee1.ngrok-free.app/%s", bot.Token))
+	host := os.Getenv(HOST_KEY)
+	wh, err := tgbotapi.NewWebhook(fmt.Sprintf("%s/%s", host, bot.Token))
 	if err != nil {
 		zap.L().Panic("Failed to create telegram bot webhook", zap.Error(err))
 	}

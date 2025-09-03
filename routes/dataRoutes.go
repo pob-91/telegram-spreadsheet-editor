@@ -2,6 +2,7 @@ package routes
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"nextcloud-spreadsheet-editor/errors"
 	"nextcloud-spreadsheet-editor/model"
@@ -82,7 +83,45 @@ func (r *DataRoutes) HandleMessage(resp http.ResponseWriter, req *http.Request) 
 
 	switch command.Type {
 	case model.COMMAND_TYPE_LIST:
-		if err := r.MessagingService.SendTextMessage(command.ChatId, "Listing categories"); err != nil {
+		if err := r.MessagingService.SendTextMessage(command.ChatId, "Listing... Hang tight..."); err != nil {
+			http.Error(resp, "", http.StatusFailedDependency)
+			return
+		}
+		sheet, err := r.DataService.GetSpreadsheet()
+		if err != nil {
+			http.Error(resp, "", http.StatusFailedDependency)
+			return
+		}
+		entries, err := r.SpreadsheetService.ListCategoriesAndValues(sheet)
+		if err != nil {
+			http.Error(resp, "", http.StatusInternalServerError)
+			return
+		}
+		if err := r.MessagingService.SendEntryList(command.ChatId, entries); err != nil {
+			http.Error(resp, "", http.StatusFailedDependency)
+			return
+		}
+	case model.COMMAND_TYPE_UPDATE:
+		sheet, err := r.DataService.GetSpreadsheet()
+		if err != nil {
+			http.Error(resp, "", http.StatusFailedDependency)
+			return
+		}
+		entries, err := r.SpreadsheetService.ListCategoriesAndValues(sheet)
+		if err != nil {
+			http.Error(resp, "", http.StatusInternalServerError)
+			return
+		}
+		if err := r.MessagingService.SendCategorySelectionKeyboard(command.ChatId, entries); err != nil {
+			http.Error(resp, "", http.StatusFailedDependency)
+			return
+		}
+	case model.COMMAND_TYPE_UPDATE_CATEGORY_CHOSEN:
+		if err := r.MessagingService.RemoveMarkupFromMessage(command.ChatId, command.MessageId); err != nil {
+			http.Error(resp, "", http.StatusFailedDependency)
+			return
+		}
+		if err := r.MessagingService.SendTextMessage(command.ChatId, fmt.Sprintf("How much to we add to %s?", *command.UpdateData.Category)); err != nil {
 			http.Error(resp, "", http.StatusFailedDependency)
 			return
 		}

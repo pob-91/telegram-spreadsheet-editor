@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"nextcloud-spreadsheet-editor/model"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/xuri/excelize/v2"
@@ -12,6 +14,7 @@ import (
 )
 
 type ISpreadsheetService interface {
+	ListCategoriesAndValues(sheet io.Reader) (*[]model.Entry, error)
 	AddValueForCategory(sheet io.Reader, category string, value float32) (io.Reader, error)
 }
 
@@ -21,7 +24,82 @@ const (
 	KEY_COLUMN_KEY       string = "KEY_COLUMN"
 	VALUE_COLUMN_KEY     string = "VALUE_COLUMN"
 	MAX_EMPTY_CELL_COUNT uint   = 5
+	START_ROW_KEY        string = "START_ROW"
 )
+
+func (s *ExcelerizeSpreadsheetService) ListCategoriesAndValues(sheet io.Reader) (*[]model.Entry, error) {
+	f, err := excelize.OpenReader(sheet, excelize.Options{})
+	if err != nil {
+		zap.L().Error("Failed to open spreadsheet", zap.Error(err))
+		return nil, fmt.Errorf("Failed to open spreadsheet")
+	}
+
+	defer func() {
+		// Close the spreadsheet.
+		if err := f.Close(); err != nil {
+			zap.L().Error("Failed to close spreadsheet", zap.Error(err))
+		}
+	}()
+
+	entries := []model.Entry{}
+
+	// currently default to last sheet
+	sheetName := f.GetSheetName(f.SheetCount - 1)
+
+	// iterate key column until getting empty cells
+	keyColumn := os.Getenv(KEY_COLUMN_KEY)
+	valueColumn := os.Getenv(VALUE_COLUMN_KEY)
+	emptyCellCount := uint(0)
+
+	currentRow := uint(1)
+	startRowStr := os.Getenv(START_ROW_KEY)
+	if len(startRowStr) > 0 {
+		i, err := strconv.Atoi(startRowStr)
+		if err != nil {
+			zap.L().Warn("Failed to parse START_ROW env", zap.Error(err), zap.String("value", startRowStr))
+		} else {
+			currentRow = uint(i)
+		}
+	}
+
+	for {
+		if emptyCellCount >= MAX_EMPTY_CELL_COUNT {
+			break
+		}
+
+		categoryCell := fmt.Sprintf("%s%d", keyColumn, currentRow)
+		category, err := f.GetCellValue(sheetName, categoryCell)
+		if err != nil {
+			zap.L().Error("Failed to get value for category cell", zap.String("cell", categoryCell), zap.Error(err))
+			return nil, fmt.Errorf("Failed to get value for cell")
+		}
+
+		trimmed := strings.ReplaceAll(category, " ", "")
+		if len(trimmed) == 0 {
+			emptyCellCount++
+			currentRow++
+			continue
+		}
+
+		emptyCellCount = 0
+
+		valueCell := fmt.Sprintf("%s%d", valueColumn, currentRow)
+		value, err := f.GetCellValue(sheetName, valueCell)
+		if err != nil {
+			zap.L().Error("Failed to get value for value cell", zap.String("cell", categoryCell), zap.Error(err))
+			return nil, fmt.Errorf("Failed to get value for cell")
+		}
+
+		entries = append(entries, model.Entry{
+			Category: category,
+			Value:    value,
+		})
+
+		currentRow++
+	}
+
+	return &entries, nil
+}
 
 func (s *ExcelerizeSpreadsheetService) AddValueForCategory(sheet io.Reader, category string, value float32) (io.Reader, error) {
 	f, err := excelize.OpenReader(sheet, excelize.Options{})
