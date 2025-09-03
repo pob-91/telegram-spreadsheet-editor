@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"nextcloud-spreadsheet-editor/routes"
@@ -12,6 +13,8 @@ import (
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 func setupLogger() {
@@ -75,6 +78,21 @@ func main() {
 		})
 	}
 
+	// set up telegram bot
+	token := os.Getenv("TELEGRAM_BOT_TOKEN")
+	bot, err := tgbotapi.NewBotAPI(token)
+	if err != nil {
+		zap.L().Panic("Failed to init new telegram bot", zap.Error(err))
+	}
+
+	wh, err := tgbotapi.NewWebhook(fmt.Sprintf("https://1200e6fc0ee1.ngrok-free.app/%s", bot.Token))
+	if err != nil {
+		zap.L().Panic("Failed to create telegram bot webhook", zap.Error(err))
+	}
+	if _, err := bot.Request(wh); err != nil {
+		zap.L().Panic("Failed to start telegram bot webhook", zap.Error(err))
+	}
+
 	// dependencies
 	httpClient := utils.HttpClient{}
 
@@ -82,15 +100,20 @@ func main() {
 		Http: &httpClient,
 	}
 	spreadsheetService := services.ExcelerizeSpreadsheetService{}
+	telegramService := services.TelegramService{
+		Bot: bot,
+	}
 
 	// routes
 	dataRoutes := routes.DataRoutes{
 		DataService:        &dataService,
 		SpreadsheetService: &spreadsheetService,
+		MessagingService:   &telegramService,
 	}
 
 	// register routes
 	mux.HandleFunc("/add", dataRoutes.AddValueForCategory)
+	mux.HandleFunc(fmt.Sprintf("/%s", bot.Token), dataRoutes.HandleMessage)
 
 	// configure server
 	server := &http.Server{

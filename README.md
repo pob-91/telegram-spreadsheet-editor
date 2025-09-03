@@ -15,3 +15,8 @@ An integration for editing spreadsheets via tools like WhatsApp
 - Upload docker image to docker hub
 - Compose stack
 - Docs and env vars detailed & steps to get telegram working
+
+
+### Future
+
+- Add voice integration using whisper or something
