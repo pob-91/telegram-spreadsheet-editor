@@ -13,6 +13,7 @@ type DataRoutes struct {
 	DataService        services.IDataService
 	SpreadsheetService services.ISpreadsheetService
 	MessagingService   services.IMessagingService
+	StorageService     services.IStorageService
 }
 
 type AddValueRequest struct {

@@ -109,12 +109,14 @@ func main() {
 	telegramService := services.TelegramService{
 		Bot: bot,
 	}
+	redisStorageService := services.NewRedisStorageService()
 
 	// routes
 	dataRoutes := routes.DataRoutes{
 		DataService:        &dataService,
 		SpreadsheetService: &spreadsheetService,
 		MessagingService:   &telegramService,
+		StorageService:     redisStorageService,
 	}
 
 	// register routes

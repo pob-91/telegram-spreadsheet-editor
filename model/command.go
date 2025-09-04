@@ -15,16 +15,16 @@ const (
 )
 
 type UpdateData struct {
-	Category *string
-	Value    *float32
+	Category *string  `json:"category,omitempty"`
+	Value    *float32 `json:"value,omitempty"`
 }
 
 type Command struct {
-	Type      int
-	ChatId    int64
-	MessageId int
+	Type      int   `json:"type"`
+	ChatId    int64 `json:"chatId"`
+	MessageId int   `json:"messageId"`
 
-	UpdateData *UpdateData
+	UpdateData *UpdateData `json:"updateData,omitempty"`
 }
 
 func CommandFromMessage(message string, chatId int64, messageId int) (*Command, error) {
