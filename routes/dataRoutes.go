@@ -39,7 +39,7 @@ func (r *DataRoutes) AddValueForCategory(resp http.ResponseWriter, req *http.Req
 		return
 	}
 
-	modified, err := r.SpreadsheetService.AddValueForCategory(spreadsheet, request.Category, request.Value)
+	modified, _, err := r.SpreadsheetService.AddValueForCategory(spreadsheet, request.Category, request.Value)
 	if err != nil {
 		resp.WriteHeader(http.StatusInternalServerError)
 		return
@@ -66,7 +66,8 @@ func (r *DataRoutes) HandleMessage(resp http.ResponseWriter, req *http.Request) 
 		case *errors.CommandError:
 			// check if the user is not wanted
 			if err.Unauthorized {
-				http.Error(resp, "", http.StatusForbidden)
+				r.MessagingService.SendTextMessage(err.ChatId, "Go away you prune head!")
+				resp.WriteHeader(http.StatusOK)
 				return
 			}
 			// otherwise just send back the response
@@ -83,6 +84,11 @@ func (r *DataRoutes) HandleMessage(resp http.ResponseWriter, req *http.Request) 
 	}
 
 	switch command.Type {
+	case model.COMMAND_TYPE_PING:
+		if err := r.MessagingService.SendTextMessage(command.ChatId, "Pong"); err != nil {
+			http.Error(resp, "", http.StatusFailedDependency)
+			return
+		}
 	case model.COMMAND_TYPE_LIST:
 		if err := r.MessagingService.SendTextMessage(command.ChatId, "Listing... Hang tight..."); err != nil {
 			http.Error(resp, "", http.StatusFailedDependency)
@@ -90,12 +96,20 @@ func (r *DataRoutes) HandleMessage(resp http.ResponseWriter, req *http.Request) 
 		}
 		sheet, err := r.DataService.GetSpreadsheet()
 		if err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
+			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
+				http.Error(resp, "", http.StatusFailedDependency)
+				return
+			}
+			resp.WriteHeader(http.StatusOK)
 			return
 		}
 		entries, err := r.SpreadsheetService.ListCategoriesAndValues(sheet)
 		if err != nil {
-			http.Error(resp, "", http.StatusInternalServerError)
+			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
+				http.Error(resp, "", http.StatusFailedDependency)
+				return
+			}
+			resp.WriteHeader(http.StatusOK)
 			return
 		}
 		if err := r.MessagingService.SendEntryList(command.ChatId, entries); err != nil {
@@ -105,12 +119,20 @@ func (r *DataRoutes) HandleMessage(resp http.ResponseWriter, req *http.Request) 
 	case model.COMMAND_TYPE_UPDATE:
 		sheet, err := r.DataService.GetSpreadsheet()
 		if err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
+			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
+				http.Error(resp, "", http.StatusFailedDependency)
+				return
+			}
+			resp.WriteHeader(http.StatusOK)
 			return
 		}
 		entries, err := r.SpreadsheetService.ListCategoriesAndValues(sheet)
 		if err != nil {
-			http.Error(resp, "", http.StatusInternalServerError)
+			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
+				http.Error(resp, "", http.StatusFailedDependency)
+				return
+			}
+			resp.WriteHeader(http.StatusOK)
 			return
 		}
 		if err := r.MessagingService.SendCategorySelectionKeyboard(command.ChatId, entries); err != nil {
@@ -126,7 +148,91 @@ func (r *DataRoutes) HandleMessage(resp http.ResponseWriter, req *http.Request) 
 			http.Error(resp, "", http.StatusFailedDependency)
 			return
 		}
+	case model.COMMAND_TYPE_NUMERICAL_AMOUNT:
+		// need to fetch the previous command
+		prevCommand, err := r.StorageService.GetPreviousCommand(command.UserId)
+		if err != nil {
+			switch err := err.(type) {
+			case *errors.StorageError:
+				if err.Type == errors.STORAGE_ERROR_TYPE_NOT_FOUND {
+					if err := r.MessagingService.SendTextMessage(command.ChatId, "Not sure what to do with that boyo. Type HELP."); err != nil {
+						http.Error(resp, "", http.StatusFailedDependency)
+						return
+					}
+
+					resp.WriteHeader(http.StatusOK)
+					return
+				}
+			default:
+				if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
+					http.Error(resp, "", http.StatusFailedDependency)
+					return
+				}
+				resp.WriteHeader(http.StatusOK)
+				return
+			}
+		}
+
+		if prevCommand.Type != model.COMMAND_TYPE_UPDATE_CATEGORY_CHOSEN {
+			if err := r.MessagingService.SendTextMessage(command.ChatId, "Not sure what to do with that boyo. Type HELP."); err != nil {
+				http.Error(resp, "", http.StatusFailedDependency)
+				return
+			}
+
+			resp.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// merge commands
+		fullCommand := model.MergeUpdateCommandWithFinancial(prevCommand, command)
+
+		// ui feedback
+		if err := r.MessagingService.SendTextMessage(command.ChatId, "On it, hang tight..."); err != nil {
+			http.Error(resp, "", http.StatusFailedDependency)
+			return
+		}
+
+		// get sheet
+		sheet, err := r.DataService.GetSpreadsheet()
+		if err != nil {
+			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
+				http.Error(resp, "", http.StatusFailedDependency)
+				return
+			}
+			resp.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// update sheet
+		updated, newVal, err := r.SpreadsheetService.AddValueForCategory(sheet, *fullCommand.UpdateData.Category, *fullCommand.UpdateData.Value)
+		if err != nil {
+			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
+				http.Error(resp, "", http.StatusFailedDependency)
+				return
+			}
+			resp.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// save sheet
+		if err := r.DataService.WriteSpreadsheet(updated); err != nil {
+			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
+				http.Error(resp, "", http.StatusFailedDependency)
+				return
+			}
+			resp.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// done!
+		if err := r.MessagingService.SendTextMessage(command.ChatId, fmt.Sprintf("Added £%.2f to %s. New total: %s", *fullCommand.UpdateData.Value, *fullCommand.UpdateData.Category, *newVal)); err != nil {
+			http.Error(resp, "", http.StatusFailedDependency)
+			return
+		}
 	}
+
+	// update command for user for next call (THIS MUST GO LAST)
+	r.StorageService.StoreCommand(command, command.UserId)
 
 	resp.WriteHeader(http.StatusOK)
 }

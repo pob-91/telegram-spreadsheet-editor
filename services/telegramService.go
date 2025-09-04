@@ -48,6 +48,7 @@ func (s *TelegramService) GetCommandFromMessage(request io.ReadCloser) (*model.C
 	}
 
 	if !slices.Contains(users, fmt.Sprintf("%d", userId)) {
+		zap.L().Warn("User not allowed", zap.Int64("userId", userId))
 		return nil, &e.CommandError{
 			Unauthorized:    true,
 			ChatId:          update.Message.Chat.ID,
@@ -66,7 +67,7 @@ func (s *TelegramService) GetCommandFromMessage(request io.ReadCloser) (*model.C
 			}
 		}
 
-		command, err := model.CommandFromCallback(update.CallbackQuery.Data, update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID)
+		command, err := model.CommandFromCallback(update.CallbackQuery.Data, update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, userId)
 		if err != nil {
 			return nil, err
 		}
@@ -74,7 +75,7 @@ func (s *TelegramService) GetCommandFromMessage(request io.ReadCloser) (*model.C
 		return command, nil
 	}
 
-	command, err := model.CommandFromMessage(update.Message.Text, update.Message.Chat.ID, update.Message.MessageID)
+	command, err := model.CommandFromMessage(update.Message.Text, update.Message.Chat.ID, update.Message.MessageID, userId)
 	if err != nil {
 		return nil, err
 	}

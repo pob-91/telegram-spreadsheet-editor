@@ -15,7 +15,7 @@ import (
 
 type ISpreadsheetService interface {
 	ListCategoriesAndValues(sheet io.Reader) (*[]model.Entry, error)
-	AddValueForCategory(sheet io.Reader, category string, value float32) (io.Reader, error)
+	AddValueForCategory(sheet io.Reader, category string, value float32) (io.Reader, *string, error)
 }
 
 type ExcelerizeSpreadsheetService struct{}
@@ -101,11 +101,11 @@ func (s *ExcelerizeSpreadsheetService) ListCategoriesAndValues(sheet io.Reader) 
 	return &entries, nil
 }
 
-func (s *ExcelerizeSpreadsheetService) AddValueForCategory(sheet io.Reader, category string, value float32) (io.Reader, error) {
+func (s *ExcelerizeSpreadsheetService) AddValueForCategory(sheet io.Reader, category string, value float32) (io.Reader, *string, error) {
 	f, err := excelize.OpenReader(sheet, excelize.Options{})
 	if err != nil {
 		zap.L().Error("Failed to open spreadsheet", zap.Error(err))
-		return nil, fmt.Errorf("Failed to open spreadsheet")
+		return nil, nil, fmt.Errorf("Failed to open spreadsheet")
 	}
 
 	defer func() {
@@ -130,7 +130,7 @@ func (s *ExcelerizeSpreadsheetService) AddValueForCategory(sheet io.Reader, cate
 		val, err := f.GetCellValue(sheetName, cell)
 		if err != nil {
 			zap.L().Error("Failed to get value for cell", zap.String("cell", cell), zap.Error(err))
-			return nil, fmt.Errorf("Failed to get value for cell")
+			return nil, nil, fmt.Errorf("Failed to get value for cell")
 		}
 
 		normVal := strings.ToLower(strings.ReplaceAll(val, " ", ""))
@@ -147,7 +147,7 @@ func (s *ExcelerizeSpreadsheetService) AddValueForCategory(sheet io.Reader, cate
 
 		if emptyCellCount >= MAX_EMPTY_CELL_COUNT {
 			zap.L().Warn("Category not found, quitting", zap.String("category", category))
-			return nil, fmt.Errorf("Category not found")
+			return nil, nil, fmt.Errorf("Category not found")
 		}
 
 		currentRow++
@@ -159,14 +159,31 @@ func (s *ExcelerizeSpreadsheetService) AddValueForCategory(sheet io.Reader, cate
 	form, err := f.GetCellFormula(sheetName, cell)
 	if err != nil {
 		zap.L().Error("Failed to get cell formula", zap.Error(err))
-		return nil, fmt.Errorf("Failed to get cell formula")
+		return nil, nil, fmt.Errorf("Failed to get cell formula")
+	}
+
+	var valueToAdd *string
+	if len(form) == 0 {
+		// this is either an empty cell or it has a value which we must not lose
+		val, err := f.GetCellValue(sheetName, cell)
+		if err != nil {
+			zap.L().Error("Failed to get cell value, borking", zap.Error(err))
+			return nil, nil, fmt.Errorf("Failed to get cell value")
+		}
+
+		if len(val) > 0 {
+			valueToAdd = &val
+		}
 	}
 
 	var updatedFormula string
 
-	if len(form) == 0 {
+	if len(form) == 0 && valueToAdd == nil {
 		// set the first value
 		updatedFormula = fmt.Sprintf("%.2f", value)
+	} else if valueToAdd != nil {
+		// include the old value
+		updatedFormula = fmt.Sprintf("%s+%.2f", *valueToAdd, value)
 	} else {
 		// add the value to the formula
 		updatedFormula = fmt.Sprintf("%s+%.2f", form, value)
@@ -174,19 +191,19 @@ func (s *ExcelerizeSpreadsheetService) AddValueForCategory(sheet io.Reader, cate
 
 	if err := f.SetCellFormula(sheetName, cell, updatedFormula); err != nil {
 		zap.L().DPanic("Failed to set the cell's formula", zap.Error(err), zap.String("formula", updatedFormula))
-		return nil, fmt.Errorf("Failed to set cell formula")
+		return nil, nil, fmt.Errorf("Failed to set cell formula")
 	}
 
 	updatedVal, err := f.CalcCellValue(sheetName, cell)
 	if err != nil {
 		zap.L().DPanic("Failed to get updated cell value from formula", zap.Error(err))
-		return nil, fmt.Errorf("Failed to get updated value from formula")
+		return nil, nil, fmt.Errorf("Failed to get updated value from formula")
 	}
 
-	if err := f.SetCellValue(sheetName, cell, updatedVal); err != nil {
-		zap.L().DPanic("Failed to update cell value", zap.Error(err))
-		return nil, fmt.Errorf("Failed to update cell value")
-	}
+	// if err := f.SetCellValue(sheetName, cell, updatedVal); err != nil {
+	// 	zap.L().DPanic("Failed to update cell value", zap.Error(err))
+	// 	return nil, nil, fmt.Errorf("Failed to update cell value")
+	// }
 
 	// return the spreadhseet as an io.Reader
 	var buffer bytes.Buffer
@@ -194,5 +211,5 @@ func (s *ExcelerizeSpreadsheetService) AddValueForCategory(sheet io.Reader, cate
 		zap.L().DPanic("Failed to write spreadsheet to buffer", zap.Error(err))
 	}
 
-	return bytes.NewReader(buffer.Bytes()), nil
+	return bytes.NewReader(buffer.Bytes()), &updatedVal, nil
 }

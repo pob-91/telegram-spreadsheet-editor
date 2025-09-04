@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"nextcloud-spreadsheet-editor/errors"
 	"nextcloud-spreadsheet-editor/model"
 	"os"
 	"strconv"
@@ -62,16 +63,19 @@ func (s *RedisStorageService) GetPreviousCommand(userId int64) (*model.Command, 
 	jsonStr, err := s.Client.Get(ctx, strconv.FormatInt(userId, 10)).Result()
 	if err != nil {
 		if err == redis.Nil {
-			// TODO: return a does not exist error
+			return nil, &errors.StorageError{
+				Type: errors.STORAGE_ERROR_TYPE_NOT_FOUND,
+			}
 		}
 		zap.L().Error("Failed to get command for user", zap.Error(err))
 		return nil, fmt.Errorf("Failed to get command for user")
 	}
 
-	if _, err := s.Client.Expire(ctx, strconv.FormatInt(userId, 10), time.Minute*15).Result(); err != nil {
-		zap.L().Error("Failed to update expiry for command", zap.Error(err))
-		return nil, fmt.Errorf("Failed to update expiry for command")
-	}
+	// don't actually need this as we are always overwriting anyway but leaving here as a good exampe
+	// if _, err := s.Client.Expire(ctx, strconv.FormatInt(userId, 10), time.Minute*15).Result(); err != nil {
+	// 	zap.L().Error("Failed to update expiry for command", zap.Error(err))
+	// 	return nil, fmt.Errorf("Failed to update expiry for command")
+	// }
 
 	var command model.Command
 	if err := json.Unmarshal([]byte(jsonStr), &command); err != nil {
@@ -79,5 +83,5 @@ func (s *RedisStorageService) GetPreviousCommand(userId int64) (*model.Command, 
 		return nil, fmt.Errorf("Failed to unmarshal json command")
 	}
 
-	return nil, nil
+	return &command, nil
 }
