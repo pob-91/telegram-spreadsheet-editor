@@ -1,0 +1,14 @@
+services:
+  redis:
+    image: redis:8-alpine
+    profiles:
+      - db
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - internal-network
+
+networks:
+  internal_network:
+    name: internal_network
