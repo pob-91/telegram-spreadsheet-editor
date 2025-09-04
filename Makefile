@@ -4,4 +4,4 @@ redis:
 	docker compose --profile db up -d
 
 trash:
-	docker compose down -v --remove-oprhans
+    docker compose --profile db down
