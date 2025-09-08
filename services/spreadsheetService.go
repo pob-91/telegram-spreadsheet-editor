@@ -171,13 +171,15 @@ func (s *ExcelerizeSpreadsheetService) AddValueForCategory(sheet io.Reader, cate
 			return nil, nil, fmt.Errorf("Failed to get cell value")
 		}
 
-		if len(val) > 0 {
-			valueToAdd = &val
+		norm := strings.ReplaceAll(val, "£", "")
+		norm = strings.ReplaceAll(norm, " ", "")
+
+		if len(val) > 0 && val != "0" {
+			valueToAdd = &norm
 		}
 	}
 
 	var updatedFormula string
-
 	if len(form) == 0 && valueToAdd == nil {
 		// set the first value
 		updatedFormula = fmt.Sprintf("%.2f", value)
@@ -190,25 +192,29 @@ func (s *ExcelerizeSpreadsheetService) AddValueForCategory(sheet io.Reader, cate
 	}
 
 	if err := f.SetCellFormula(sheetName, cell, updatedFormula); err != nil {
-		zap.L().DPanic("Failed to set the cell's formula", zap.Error(err), zap.String("formula", updatedFormula))
+		zap.L().Error("Failed to set the cell's formula", zap.Error(err), zap.String("formula", updatedFormula))
 		return nil, nil, fmt.Errorf("Failed to set cell formula")
 	}
 
 	updatedVal, err := f.CalcCellValue(sheetName, cell)
 	if err != nil {
-		zap.L().DPanic("Failed to get updated cell value from formula", zap.Error(err))
+		zap.L().Error("Failed to get updated cell value from formula", zap.Error(err))
 		return nil, nil, fmt.Errorf("Failed to get updated value from formula")
 	}
 
+	if err := f.UpdateLinkedValue(); err != nil {
+		zap.L().Warn("Failed to updated linked values", zap.Error(err))
+	}
+
 	// if err := f.SetCellValue(sheetName, cell, updatedVal); err != nil {
-	// 	zap.L().DPanic("Failed to update cell value", zap.Error(err))
+	// 	zap.L().Error("Failed to update cell value", zap.Error(err))
 	// 	return nil, nil, fmt.Errorf("Failed to update cell value")
 	// }
 
 	// return the spreadhseet as an io.Reader
 	var buffer bytes.Buffer
 	if err := f.Write(&buffer); err != nil {
-		zap.L().DPanic("Failed to write spreadsheet to buffer", zap.Error(err))
+		zap.L().Error("Failed to write spreadsheet to buffer", zap.Error(err))
 	}
 
 	return bytes.NewReader(buffer.Bytes()), &updatedVal, nil

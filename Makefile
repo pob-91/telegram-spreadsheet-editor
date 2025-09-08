@@ -4,4 +4,4 @@ redis:
 	docker compose --profile db up -d
 
 trash:
-    docker compose --profile db down
+	docker compose --profile db down
