@@ -120,7 +120,6 @@ func main() {
 	}
 
 	// register routes
-	mux.HandleFunc("/add", dataRoutes.AddValueForCategory)
 	mux.HandleFunc(fmt.Sprintf("/%s", bot.Token), dataRoutes.HandleMessage)
 
 	// configure server

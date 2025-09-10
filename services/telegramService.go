@@ -18,7 +18,7 @@ type IMessagingService interface {
 	GetCommandFromMessage(request io.ReadCloser) (*model.Command, error)
 	SendTextMessage(chatId int64, message string) error
 	SendEntryList(chatId int64, entries *[]model.Entry) error
-	SendCategorySelectionKeyboard(chatId int64, entries *[]model.Entry) error
+	SendCategorySelectionKeyboard(chatId int64, entries *[]model.Entry, command string) error
 	RemoveMarkupFromMessage(chatId int64, messageId int) error
 }
 
@@ -108,12 +108,12 @@ func (s *TelegramService) SendEntryList(chatId int64, entries *[]model.Entry) er
 	return nil
 }
 
-func (s *TelegramService) SendCategorySelectionKeyboard(chatId int64, entries *[]model.Entry) error {
+func (s *TelegramService) SendCategorySelectionKeyboard(chatId int64, entries *[]model.Entry, command string) error {
 	currentButtons := []tgbotapi.InlineKeyboardButton{}
 	buttonRows := [][]tgbotapi.InlineKeyboardButton{}
 
 	for i, e := range *entries {
-		currentButtons = append(currentButtons, tgbotapi.NewInlineKeyboardButtonData(e.Category, fmt.Sprintf("UPDATE:%s", e.Category)))
+		currentButtons = append(currentButtons, tgbotapi.NewInlineKeyboardButtonData(e.Category, fmt.Sprintf("%s:%s", command, e.Category)))
 		if (i+1)%3 == 0 {
 			buttonRows = append(buttonRows, currentButtons)
 			currentButtons = make([]tgbotapi.InlineKeyboardButton, 0)
