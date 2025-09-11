@@ -3,7 +3,6 @@ An integration for editing spreadsheets via tools like WhatsApp
 
 ### TODO
 
-- Upload docker image to docker hub or GCR
 - Docs and env vars detailed & steps to get telegram working
 
 ### Future
