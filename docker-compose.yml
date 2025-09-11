@@ -10,7 +10,7 @@ services:
       - internal_network
 
   editor:
-    image: spreadsheet-editor:latest
+    image: pob-91/telegram-spreadsheet-editor:latest
     profiles:
       - all
     restart: always
