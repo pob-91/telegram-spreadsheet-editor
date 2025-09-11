@@ -6,6 +6,8 @@ import (
 	"telegram-spreadsheet-editor/errors"
 	"telegram-spreadsheet-editor/model"
 	"telegram-spreadsheet-editor/services"
+
+	"go.uber.org/zap"
 )
 
 type DataRoutes struct {
@@ -17,9 +19,12 @@ type DataRoutes struct {
 
 func (r *DataRoutes) HandleMessage(resp http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
+		zap.L().Error("Tried to handle message with wrong verb", zap.String("method", req.Method))
 		http.Error(resp, "invalid method", http.StatusMethodNotAllowed)
 		return
 	}
+
+	zap.L().Info("Starting message handle")
 
 	// get command
 	command, err := r.MessagingService.GetCommandFromMessage(req.Body)
@@ -44,6 +49,8 @@ func (r *DataRoutes) HandleMessage(resp http.ResponseWriter, req *http.Request) 
 			return
 		}
 	}
+
+	zap.L().Info("Handling telegram message", zap.Uint8("type", command.Type))
 
 	switch command.Type {
 	case model.COMMAND_TYPE_PING:

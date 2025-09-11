@@ -22,6 +22,7 @@ const (
 	SERVICE_HOST_KEY string = "SERVICE_HOST"
 	HOST_KEY         string = "HOST"
 	PORT_KEY         string = "PORT"
+	LOG_LEVEL_KEY    string = "LOG_LEVEL"
 )
 
 func setupLogger() {
@@ -34,7 +35,20 @@ func setupLogger() {
 	encoderCfg.TimeKey = "timestamp"
 	encoderCfg.EncodeTime = zapcore.ISO8601TimeEncoder
 
-	zapLevel := zap.InfoLevel
+	logLevel := os.Getenv(LOG_LEVEL_KEY)
+	var zapLevel zapcore.Level
+	switch logLevel {
+	case "Debug":
+		zapLevel = zap.DebugLevel
+	case "Info":
+		zapLevel = zap.InfoLevel
+	case "Warning":
+		zapLevel = zap.WarnLevel
+	case "Error":
+		zapLevel = zap.ErrorLevel
+	default:
+		zapLevel = zap.WarnLevel
+	}
 
 	config := zap.Config{
 		Level:             zap.NewAtomicLevelAt(zapLevel),
@@ -98,6 +112,9 @@ func main() {
 	}
 
 	serviceHost := os.Getenv(SERVICE_HOST_KEY)
+
+	zap.L().Info("Creating new telegram webhook", zap.String("host", serviceHost))
+
 	wh, err := tgbotapi.NewWebhook(fmt.Sprintf("%s/%s", serviceHost, bot.Token))
 	if err != nil {
 		zap.L().Panic("Failed to create telegram bot webhook", zap.Error(err))
