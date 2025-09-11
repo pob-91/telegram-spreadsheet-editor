@@ -1,7 +1,13 @@
-.PHONY: redis trash
+.PHONY: redis up trash-redis trash
 
 redis:
 	docker compose --profile db up -d
 
-trash:
+up:
+	docker compose --profile all up -d
+
+trash-redis:
 	docker compose --profile db down
+
+trash:
+	docker compose --profile all down

@@ -5,11 +5,11 @@ WORKDIR /src
 RUN --mount=type=bind,source=.,target=/src \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /out/app .
 
-FROM scratch
+FROM gcr.io/distroless/static-debian12:nonroot
 
-COPY --from=builder --chown=1000:1000 /out/app /app
-COPY --chown=1000:1000 .env.defaults /.env
+COPY --from=builder /out/app /app
+COPY .env.defaults /home/nonroot/.env
 
-USER 1000:1000
+USER nonroot
 
 ENTRYPOINT [ "/app" ]

@@ -3,6 +3,7 @@ services:
     image: redis:8-alpine
     profiles:
       - db
+      - all
     restart: always
     ports:
       - "6379:6379"
@@ -13,12 +14,11 @@ services:
     image: pob-91/telegram-spreadsheet-editor:latest
     profiles:
       - all
-    restart: always
     ports:
       - "8080:8080"
-    environment:
-      - REDIS_HOST=localhost:6379
-      # Add other env vars from .env.example here as required
+    env_file:
+      # Use .env.example to create a .env file and load it here
+      - .env
     networks:
       - internal_network
 
