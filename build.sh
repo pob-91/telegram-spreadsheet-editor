@@ -1,3 +1,3 @@
 #!/bin/bash
 
-docker build -t spreadsheet-editor:latest .
+docker build -t pob-91/telegram-spreadsheet-editor:latest .
