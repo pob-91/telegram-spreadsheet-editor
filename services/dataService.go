@@ -22,10 +22,10 @@ type NCDataService struct {
 }
 
 const (
-	BASE_URL_KEY       string = "NEXTCLOUD_WEBDAV_BASE_URL"
+	BASE_URL_KEY       string = "SHEET_BASE_URL"
 	XLSX_FILE_PATH_KEY string = "XLSX_FILE_PATH"
-	USER_KEY           string = "NEXTCLOUD_USER"
-	PASSWORD_KEY       string = "NEXTCLOUD_PASSWORD"
+	USER_KEY           string = "BASIC_AUTH_USER"
+	PASSWORD_KEY       string = "BASIC_AUTH_PASSWORD"
 )
 
 func (s *NCDataService) GetSpreadsheet() (io.Reader, error) {
@@ -37,12 +37,15 @@ func (s *NCDataService) GetSpreadsheet() (io.Reader, error) {
 	user := os.Getenv(USER_KEY)
 	password := os.Getenv(PASSWORD_KEY)
 
+	opts := utils.HttpOptions{}
+	if len(user) > 0 && len(password) > 0 {
+		opts.BasicAuthUser = &user
+		opts.BasicAuthPassword = &password
+	}
+
 	// TODO: Modify this to not need to send the response string and just get the bytes
 	var responseString string
-	response, err := s.Http.Get(fileUrl, &responseString, &utils.HttpOptions{
-		BasicAuthUser:     &user,
-		BasicAuthPassword: &password,
-	})
+	response, err := s.Http.Get(fileUrl, &responseString, &opts)
 	if err != nil {
 		zap.L().Error("Failed to download file", zap.Int("response", response.StatusCode), zap.Error(err))
 		return nil, fmt.Errorf("Failed to download file")
@@ -62,21 +65,26 @@ func (s *NCDataService) WriteSpreadsheet(sheet io.Reader) error {
 		return err
 	}
 
-	user := os.Getenv(USER_KEY)
-	password := os.Getenv(PASSWORD_KEY)
-
 	b, err := io.ReadAll(sheet)
 	if err != nil {
 		zap.L().DPanic("Failed to read sheet", zap.Error(err))
 		return fmt.Errorf("Failed to read sheet")
 	}
 
+	user := os.Getenv(USER_KEY)
+	password := os.Getenv(PASSWORD_KEY)
+
+	opts := utils.HttpOptions{
+		ContentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	}
+
+	if len(user) > 0 && len(password) > 0 {
+		opts.BasicAuthUser = &user
+		opts.BasicAuthPassword = &password
+	}
+
 	buffer := bytes.NewBuffer(b)
-	response, err := s.Http.Put(fileUrl, buffer, nil, &utils.HttpOptions{
-		BasicAuthUser:     &user,
-		BasicAuthPassword: &password,
-		ContentType:       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-	})
+	response, err := s.Http.Put(fileUrl, buffer, nil, &opts)
 	if err != nil {
 		zap.L().Error("Failed to upload file", zap.Int("response", response.StatusCode), zap.Error(err))
 		return fmt.Errorf("Failed to upload file")
@@ -96,8 +104,7 @@ func getFileUrl() (string, error) {
 		return "", fmt.Errorf("URL error")
 	}
 
-	user := os.Getenv(USER_KEY)
-	u.Path = path.Join(u.Path, user, filePath)
+	u.Path = path.Join(u.Path, filePath)
 
 	return u.String(), nil
 }

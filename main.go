@@ -36,7 +36,7 @@ func setupLogger() {
 
 	config := zap.Config{
 		Level:             zap.NewAtomicLevelAt(zapLevel),
-		Development:       os.Getenv("ENVIRONMENT") == "dev",
+		Development:       os.Getenv("ENVIRONMENT") == "development",
 		DisableCaller:     false,
 		DisableStacktrace: false,
 		Sampling:          nil,
@@ -64,6 +64,11 @@ func main() {
 	}
 
 	setupLogger()
+
+	if err := utils.AssertEnvVars(); err != nil {
+		zap.L().Error("Required env vars missing", zap.Error(err))
+		return
+	}
 
 	// setup router
 	mux := http.NewServeMux()

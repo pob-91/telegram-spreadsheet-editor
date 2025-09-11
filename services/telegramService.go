@@ -47,7 +47,7 @@ func (s *TelegramService) GetCommandFromMessage(request io.ReadCloser) (*model.C
 		userId = update.Message.From.ID
 	}
 
-	if !slices.Contains(users, fmt.Sprintf("%d", userId)) {
+	if len(users) > 0 && !slices.Contains(users, fmt.Sprintf("%d", userId)) {
 		zap.L().Warn("User not allowed", zap.Int64("userId", userId))
 		return nil, &e.CommandError{
 			Unauthorized:    true,
