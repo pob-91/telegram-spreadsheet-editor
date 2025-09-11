@@ -18,8 +18,10 @@ import (
 )
 
 const (
-	BOT_TOKEN_KEY string = "TELEGRAM_BOT_TOKEN"
-	HOST_KEY      string = "SERVICE_HOST"
+	BOT_TOKEN_KEY    string = "TELEGRAM_BOT_TOKEN"
+	SERVICE_HOST_KEY string = "SERVICE_HOST"
+	HOST_KEY         string = "HOST"
+	PORT_KEY         string = "PORT"
 )
 
 func setupLogger() {
@@ -95,8 +97,8 @@ func main() {
 		zap.L().Panic("Failed to init new telegram bot", zap.Error(err))
 	}
 
-	host := os.Getenv(HOST_KEY)
-	wh, err := tgbotapi.NewWebhook(fmt.Sprintf("%s/%s", host, bot.Token))
+	serviceHost := os.Getenv(SERVICE_HOST_KEY)
+	wh, err := tgbotapi.NewWebhook(fmt.Sprintf("%s/%s", serviceHost, bot.Token))
 	if err != nil {
 		zap.L().Panic("Failed to create telegram bot webhook", zap.Error(err))
 	}
@@ -127,9 +129,12 @@ func main() {
 	// register routes
 	mux.HandleFunc(fmt.Sprintf("/%s", bot.Token), dataRoutes.HandleMessage)
 
+	host := os.Getenv(HOST_KEY)
+	port := os.Getenv(PORT_KEY)
+
 	// configure server
 	server := &http.Server{
-		Addr:         ":8080",
+		Addr:         fmt.Sprintf("%s:%s", host, port),
 		Handler:      corsHandler(mux),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,

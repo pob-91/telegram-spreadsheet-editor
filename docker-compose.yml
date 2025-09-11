@@ -9,6 +9,18 @@ services:
     networks:
       - internal_network
 
+  editor:
+    image: spreadsheet-editor:latest
+    profiles:
+      - all
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - REDIS_HOST=localhost:6379
+    networks:
+      - internal_network
+
 networks:
   internal_network:
     name: internal_network

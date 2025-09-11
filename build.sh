@@ -1,3 +1,3 @@
 #!/bin/bash
 
-docker build -t spreadsheet-editor:test .
+docker build -t spreadsheet-editor:latest .

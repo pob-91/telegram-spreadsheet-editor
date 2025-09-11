@@ -8,6 +8,7 @@ RUN --mount=type=bind,source=.,target=/src \
 FROM scratch
 
 COPY --from=builder --chown=1000:1000 /out/app /app
+COPY --chown=1000:1000 .env.defaults /.env
 
 USER 1000:1000
 
