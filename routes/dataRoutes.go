@@ -3,9 +3,9 @@ package routes
 import (
 	"fmt"
 	"net/http"
-	"nextcloud-spreadsheet-editor/errors"
-	"nextcloud-spreadsheet-editor/model"
-	"nextcloud-spreadsheet-editor/services"
+	"telegram-spreadsheet-editor/errors"
+	"telegram-spreadsheet-editor/model"
+	"telegram-spreadsheet-editor/services"
 )
 
 type DataRoutes struct {

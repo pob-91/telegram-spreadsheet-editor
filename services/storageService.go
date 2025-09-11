@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"nextcloud-spreadsheet-editor/errors"
-	"nextcloud-spreadsheet-editor/model"
 	"os"
 	"strconv"
+	"telegram-spreadsheet-editor/errors"
+	"telegram-spreadsheet-editor/model"
 	"time"
 
 	"github.com/redis/go-redis/v9"

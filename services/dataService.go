@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"nextcloud-spreadsheet-editor/utils"
 	"os"
 	"path"
+	"telegram-spreadsheet-editor/utils"
 
 	"go.uber.org/zap"
 )

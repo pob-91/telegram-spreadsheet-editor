@@ -2,10 +2,10 @@ package model
 
 import (
 	"fmt"
-	e "nextcloud-spreadsheet-editor/errors"
-	"nextcloud-spreadsheet-editor/utils"
 	"strconv"
 	"strings"
+	e "telegram-spreadsheet-editor/errors"
+	"telegram-spreadsheet-editor/utils"
 
 	"go.uber.org/zap"
 )

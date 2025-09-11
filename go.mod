@@ -1,4 +1,4 @@
-module nextcloud-spreadsheet-editor
+module telegram-spreadsheet-editor
 
 go 1.24.6
 

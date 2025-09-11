@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	e "nextcloud-spreadsheet-editor/errors"
-	"nextcloud-spreadsheet-editor/model"
 	"os"
 	"slices"
 	"strings"
+	e "telegram-spreadsheet-editor/errors"
+	"telegram-spreadsheet-editor/model"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"go.uber.org/zap"

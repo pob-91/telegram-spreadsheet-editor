@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"nextcloud-spreadsheet-editor/routes"
-	"nextcloud-spreadsheet-editor/services"
-	"nextcloud-spreadsheet-editor/utils"
 	"os"
+	"telegram-spreadsheet-editor/routes"
+	"telegram-spreadsheet-editor/services"
+	"telegram-spreadsheet-editor/utils"
 	"time"
 
 	"github.com/joho/godotenv"
