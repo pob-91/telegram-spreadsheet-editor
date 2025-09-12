@@ -6,8 +6,10 @@ A telegram bot integration for talking to your spreadsheets.
 
 This project allows you to send simple commands to a finances spreadsheet. The spreadsheet has an expected structure but it is very simple (categories in one comlumn with values against each category in another). This could be extended to other structures.
 
-<img src="read_pt1.png" width="200" />
-<img src="read_pt2.png" width="200" />
+<p float="left">
+    <img src="read_pt1.png" width="200" />
+    <img src="read_pt2.png" width="200" />
+</p>
 
 ### Future
 
