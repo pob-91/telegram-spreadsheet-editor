@@ -6,10 +6,45 @@ A telegram bot integration for talking to your spreadsheets.
 
 This project allows you to send simple commands to a finances spreadsheet. The spreadsheet has an expected structure but it is very simple (categories in one comlumn with values against each category in another). This could be extended to other structures.
 
+This project is open source under the [MIT License](LICENSE)
+
+### Features
+
 <p float="left">
     <img src="read_pt1.png" width="200" />
     <img src="read_pt2.png" width="200" />
 </p>
+
+**Available Commands**
+
+- **READ** - choose a category and get the value.
+- **DETAILS** - choose a category and get the function breakdown e.g. `25+67`.
+- **UPDATE** - choose a category and specify how much to add to it.
+- **REMOVE** - choose a category and remove the last added element e.g. `25+67+82` becomes `25+67`.
+- **HELP** - prints list of available commands.
+- **PING** - pong
+
+*and some various easter eggs but what would be the fun in revealing those*
+
+### Deploying
+
+Telegram spreadsheet editor can be deployed from source, as a [compose stack](docker-compose.yml) or with kubernetes. We do not provide a helm chart but see [our tofu example](k3s_example.tf).
+
+If building from source, the project is wrtten entirely in go and uses the mod syntax. Our [Dockerfile](Dockerfile) has an example of the go build command we use that is very portable. The program has only 1 requirement and that is ca-certificates.
+
+#### Setting Up A Telegram Bot
+
+TODO
+
+#### Spreadsheet API and expectations
+
+TODO
+
+### Environment Variables
+
+TODO
+
+### Contributing
 
 ### Future
 

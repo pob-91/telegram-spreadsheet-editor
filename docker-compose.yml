@@ -17,7 +17,7 @@ services:
     ports:
       - "8080:8080"
     env_file:
-      # Use .env.example to create a .env file and load it here
+      # Use .env.example to create a .env file to load here
       - .env
     networks:
       - internal_network
