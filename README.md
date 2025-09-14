@@ -32,15 +32,45 @@ Telegram spreadsheet editor can be deployed from source, as a [compose stack](do
 
 If building from source, the project is wrtten entirely in go and uses the mod syntax. Our [Dockerfile](Dockerfile) has an example of the go build command we use that is very portable. The program has only 1 requirement and that is ca-certificates.
 
+Currently this project assumes you have a Telegram Bot set up and also a spreadsheet in an expected format and accessible for download and upload. See [Setting Up A Telegram Bot](#markdown-header-setting-up-a-telegram-bot) and [Spreadsheet API and Expectations](#markdown-header-spredsheet-api-and-expectations) for more info.
+
 #### Setting Up A Telegram Bot
 
-TODO
+This project currently assumes that you have a Telegram bot set up, this is the primary (and only) inteface with this program. To do this you need to use the BotFather bot in the telegram app. There is a [Telegram tutorial here](https://core.telegram.org/bots/tutorial) that you can follow to get up and running. BotFather will give you a Telegram bot key which is one of the environment variables required.
 
-#### Spreadsheet API and expectations
+By default, Telegram allows anyone to interact with your bot, whilst it is unlikely that it will be discovered, it is not ideal to allow it to be left open. To tackle this, you can specify a list of allowed Telegram user IDs. If a message is sent from an unrecognised account it will be rejected. **NOTE**: By default this program responds to all messages, see [Environment Variables](#markdown-header-environment-variables) to see how to filter by user ID.
 
-TODO
+#### Spreadsheet API and Expectations
+
+**API**
+
+This project modifies a spreadsheet by downloading it, modifying it, and then re-uploading it from your specified source. This means that there must be a GET endpoint for spreadsheet downloads and a PUT for spreadsheet uploads.
+
+**Authentication**
+
+This project currently supports unauthenticated and basic auth endpoints.
+
+**Spreadsheet Format**
+
+There is an expected spreadsheet format but it is very basic. This project assumes the following:
+
+- The last tab is the one that is to be edited.
+- There is a column that lists all the categories available.
+- There is a column where the values for each category are listed.
+- The row for category and value are the same.
+
+The columns in the [example spreadsheet](Example.xlsx) are D and E.
+
+**Workarounds**
+
+If this project does not meet your requirements due to one or more of the above assumptions you can try the following:
+
+- If your spreadsheet is not available via GET and PUT, you could write a middleware API layer that exposes it via for this program, open an issue requesting support, or even better add support for your source and raise an MR! [See contributing](#markdown-header-contributing).
+- If your spreadsheet is not in the expected format, and you think it is a reasonable and common format, then open an issue or add support. If your super awesome amazing unique spreadsheet format is not supported, it probably never will be!
 
 ### Running Locally
+
+TODO
 
 ### Environment Variables
 
