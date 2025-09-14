@@ -32,13 +32,13 @@ Telegram spreadsheet editor can be deployed from source, as a [compose stack](do
 
 If building from source, the project is wrtten entirely in go and uses the mod syntax. Our [Dockerfile](Dockerfile) has an example of the go build command we use that is very portable. The program has only 1 requirement and that is ca-certificates.
 
-Currently this project assumes you have a Telegram Bot set up and also a spreadsheet in an expected format and accessible for download and upload. See [Setting Up A Telegram Bot](#markdown-header-setting-up-a-telegram-bot) and [Spreadsheet API and Expectations](#markdown-header-spredsheet-api-and-expectations) for more info.
+Currently this project assumes you have a Telegram Bot set up and also a spreadsheet in an expected format and accessible for download and upload. See [Setting Up A Telegram Bot](#setting-up-a-telegram-bot) and [Spreadsheet API and Expectations](#spredsheet-api-and-expectations) for more info.
 
 #### Setting Up A Telegram Bot
 
 This project currently assumes that you have a Telegram bot set up, this is the primary (and only) inteface with this program. To do this you need to use the BotFather bot in the telegram app. There is a [Telegram tutorial here](https://core.telegram.org/bots/tutorial) that you can follow to get up and running. BotFather will give you a Telegram bot key which is one of the environment variables required.
 
-By default, Telegram allows anyone to interact with your bot, whilst it is unlikely that it will be discovered, it is not ideal to allow it to be left open. To tackle this, you can specify a list of allowed Telegram user IDs. If a message is sent from an unrecognised account it will be rejected. **NOTE**: By default this program responds to all messages, see [Environment Variables](#markdown-header-environment-variables) to see how to filter by user ID.
+By default, Telegram allows anyone to interact with your bot, whilst it is unlikely that it will be discovered, it is not ideal to allow it to be left open. To tackle this, you can specify a list of allowed Telegram user IDs. If a message is sent from an unrecognised account it will be rejected. **NOTE**: By default this program responds to all messages, see [Environment Variables](#environment-variables) to see how to filter by user ID.
 
 #### Spreadsheet API and Expectations
 
@@ -65,21 +65,39 @@ The columns in the [example spreadsheet](Example.xlsx) are D and E.
 
 If this project does not meet your requirements due to one or more of the above assumptions you can try the following:
 
-- If your spreadsheet is not available via GET and PUT, you could write a middleware API layer that exposes it via for this program, open an issue requesting support, or even better add support for your source and raise an MR! [See contributing](#markdown-header-contributing).
+- If your spreadsheet is not available via GET and PUT, you could write a middleware API layer that exposes it via for this program, open an issue requesting support, or even better add support for your source and raise an MR! [See contributing](#contributing).
 - If your spreadsheet is not in the expected format, and you think it is a reasonable and common format, then open an issue or add support. If your super awesome amazing unique spreadsheet format is not supported, it probably never will be!
 
 ### Running Locally
 
-TODO
+- Make sure you have a Telegram bot set up and also a spreadsheet URL available (see above).
+- Create a .env file from .env.example and fill in the values.
+
+> If you want to test out this project locally (no debug):
+
+Make sure you have docker installed and run:
+
+```shell
+make up
+```
+
+This will start the stack locally and expose the API via `localhost:8080`. Then you can use a service like [ngrok](https://ngrok.com/) to generate a publicly accessible URL to use with the Telegram bot.
+
+> If you want to debug and make edits:
+
+Make sure you have go installed, install the dependencies (`go mod tidy`) and run either with your debugger. The makefile has a `make redis` command that will start a redis instance for you which is required by the project. Use something like [ngrok](https://ngrok.com/) to interact with the Telegram bot.
 
 ### Environment Variables
 
-TODO
+| NAME | Description | Default |
+|------|-------------|---------|
+| ENVIRONMENT | Environment name - development puts the logger into dev mode and changes behaviour of the panic level | production |
 
 ### Contributing
 
 ### Future
 
+- Add text and whatsapp support via Twilio.
 - Add voice integration using whisper or something
 - Add in currency converson using symbols or codes e.g. USD, GBP, JPY
 - Add in a NEW MONTH command that creates a new month's tab and optionally reads some defaults.
