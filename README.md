@@ -89,9 +89,23 @@ Make sure you have go installed, install the dependencies (`go mod tidy`) and ru
 
 ### Environment Variables
 
-| NAME | Description | Default |
-|------|-------------|---------|
-| ENVIRONMENT | Environment name - development puts the logger into dev mode and changes behaviour of the panic level | production |
+| NAME | Description | Default | Required |
+|------|-------------|---------|----------|
+| **ENVIRONMENT** | Environment name - development puts the logger into dev mode and changes behaviour of the panic level | "production" | true |
+| **HOST** | Address on which the API listens | "0.0.0.0" | true |
+| **PORT** | Port on which the API listens | "8080" | true |
+| **LOG_LEVEL** | Which level of logs to include | "Warning" | true |
+| **BASIC_AUTH_USER** | Sets basic auth user for spreadsheet GET and PUT | | false |
+| **BASIC_AUTH_PASSWORD** | Sets basic auth password for spreadsheet GET and PUT | | false |
+| **SHEET_BASE_URL** | Base URL (not full path) for the spreadsheet e.g. `https://epic-server.com` | | true |
+| **XLSX_FILE_PATH** | Path for the spreadsheet e.g. `docs/my-cool-sheet.xlsx`. Joined with `SHEET_BASE_URL` | | true |
+| **KEY_COLUMN** | Spreadsheet column where the categories are listed | | true |
+| **VALUE_COLUMN** | Spreadsheet column where the values are listed for each category | | true |
+| **START_ROW** | The row at which to start looking for categories and values. Use this to skip header rows | | false |
+| **TELEGRAM_BOT_TOKEN** | The token for your telegram bot | | true |
+| **TELEGRAM_ALLOWED_USERS** | A comma sepaarated list of telegram user IDs. If set then the API will reject unrecognised users. | | false |
+| **SERVICE_HOST** | Public URL that Telegram can use to communicate with this API. E.g. `https://my-cool-bot.com` | | true |
+| **REDIS_HOST** | The redis URL. If running via docker compose set to redis:6379. If running locally set to localhost:6379. | | true |
 
 ### Contributing
 
