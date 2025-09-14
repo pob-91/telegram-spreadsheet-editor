@@ -104,10 +104,16 @@ Make sure you have go installed, install the dependencies (`go mod tidy`) and ru
 | **START_ROW** | The row at which to start looking for categories and values. Use this to skip header rows | | false |
 | **TELEGRAM_BOT_TOKEN** | The token for your telegram bot | | true |
 | **TELEGRAM_ALLOWED_USERS** | A comma sepaarated list of telegram user IDs. If set then the API will reject unrecognised users. | | false |
-| **SERVICE_HOST** | Public URL that Telegram can use to communicate with this API. E.g. `https://my-cool-bot.com` | | true |
+| **SERVICE_HOST** | Public URL that Telegram can use to communicate with this API. E.g. `https://my-cool-bot.com`. If using `ngrok` then set this variable to the ngrok url | | true |
 | **REDIS_HOST** | The redis URL. If running via docker compose set to redis:6379. If running locally set to localhost:6379. | | true |
 
 ### Contributing
+
+If you want to fix a bug or add a feature to this project then just raise a Pull Request. When doing so please bear the following in mind:
+
+- Please look at the norms and patterns in the project and adhere to them.
+- Please consider users when adding features.
+- It may take me a little while to come and deal with it. Apologies but I am on it!
 
 ### Future
 
