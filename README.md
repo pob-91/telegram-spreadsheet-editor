@@ -117,7 +117,9 @@ If you want to fix a bug or add a feature to this project then just raise a Pull
 
 ### Future
 
+- Add Google Docs support
 - Add text and whatsapp support via Twilio.
+- Add support for office online (probably a nightmare...)
 - Add voice integration using whisper or something
 - Add in currency converson using symbols or codes e.g. USD, GBP, JPY
 - Add in a NEW MONTH command that creates a new month's tab and optionally reads some defaults.
