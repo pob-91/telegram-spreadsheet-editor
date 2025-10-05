@@ -147,13 +147,15 @@ func (s *ExcelerizeSpreadsheetService) AddValueForCategory(sheet io.Reader, cate
 		norm := strings.ReplaceAll(val, "£", "")
 		norm = strings.ReplaceAll(norm, " ", "")
 
-		if len(val) > 0 && val != "0" {
+		if len(val) > 0 && strings.Compare(val, "£0.00") != 0 {
 			valueToAdd = &norm
 		}
 	}
 
+	zap.L().Info("Staring formula update", zap.String("current formula", form))
+
 	var updatedFormula string
-	if len(form) == 0 && valueToAdd == nil {
+	if (len(form) == 0 || strings.Compare(form, "0") == 0) && valueToAdd == nil {
 		// set the first value
 		updatedFormula = fmt.Sprintf("%.2f", value)
 	} else if valueToAdd != nil {
@@ -163,6 +165,8 @@ func (s *ExcelerizeSpreadsheetService) AddValueForCategory(sheet io.Reader, cate
 		// add the value to the formula
 		updatedFormula = fmt.Sprintf("%s+%.2f", form, value)
 	}
+
+	zap.L().Info("Setting cell formula", zap.String("formula", updatedFormula))
 
 	if err := f.SetCellFormula(sheetName, cell, updatedFormula); err != nil {
 		zap.L().Error("Failed to set the cell's formula", zap.Error(err), zap.String("formula", updatedFormula))
@@ -174,6 +178,8 @@ func (s *ExcelerizeSpreadsheetService) AddValueForCategory(sheet io.Reader, cate
 		zap.L().Error("Failed to get updated cell value from formula", zap.Error(err))
 		return nil, nil, fmt.Errorf("Failed to get updated value from formula")
 	}
+
+	zap.L().Info("Calculated new value", zap.String("val", updatedVal))
 
 	if err := f.UpdateLinkedValue(); err != nil {
 		zap.L().Warn("Failed to updated linked values", zap.Error(err))
