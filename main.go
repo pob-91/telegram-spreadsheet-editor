@@ -1,14 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"net/http"
 	"os"
+	"telegram-spreadsheet-editor/model"
 	"telegram-spreadsheet-editor/routes"
 	"telegram-spreadsheet-editor/services"
 	"telegram-spreadsheet-editor/utils"
-	"time"
 
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
@@ -86,43 +84,23 @@ func main() {
 		return
 	}
 
-	// setup router
-	mux := http.NewServeMux()
-
-	// setup any auth / cors / logging middleware
-	corsHandler := func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-			if r.Method == "OPTIONS" {
-				w.WriteHeader(http.StatusOK)
-				return
-			}
-			next.ServeHTTP(w, r)
-		})
-	}
-
 	// set up telegram bot
 	token := os.Getenv(BOT_TOKEN_KEY)
 	bot, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		zap.L().Panic("Failed to init new telegram bot", zap.Error(err))
 	}
+	bot.Debug = utils.IsDevelopment()
 
-	serviceHost := os.Getenv(SERVICE_HOST_KEY)
-
-	zap.L().Info("Creating new telegram webhook", zap.String("host", serviceHost))
-
-	// TODO: Update this to use the golang chan to get updates if it works
-	wh, err := tgbotapi.NewWebhook(fmt.Sprintf("%s/%s", serviceHost, bot.Token))
-	if err != nil {
-		zap.L().Panic("Failed to create telegram bot webhook", zap.Error(err))
+	// delete current webhooks if they exist
+	cfg := tgbotapi.DeleteWebhookConfig{
+		DropPendingUpdates: true,
 	}
-	if _, err := bot.Request(wh); err != nil {
-		zap.L().Panic("Failed to start telegram bot webhook", zap.Error(err))
+	if _, err := bot.Request(cfg); err != nil {
+		zap.L().DPanic("Failed to delete webhook - cannot proceed.", zap.Error(err))
 	}
+
+	zap.L().Info("Authorised for account", zap.String("account", bot.Self.UserName))
 
 	// dependencies
 	httpClient := utils.HttpClient{}
@@ -144,23 +122,19 @@ func main() {
 		StorageService:     valkeyStorageService,
 	}
 
-	// register routes
-	mux.HandleFunc(fmt.Sprintf("/%s", bot.Token), dataRoutes.HandleMessage)
+	// listen for channel updates
+	u := tgbotapi.NewUpdate(0)
+	u.Timeout = 60
 
-	host := os.Getenv(HOST_KEY)
-	port := os.Getenv(PORT_KEY)
+	updates := bot.GetUpdatesChan(u)
 
-	// configure server
-	server := &http.Server{
-		Addr:         fmt.Sprintf("%s:%s", host, port),
-		Handler:      corsHandler(mux),
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	zap.L().Info("Server starting", zap.String("addr", server.Addr))
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatal("Server failed to start:", err)
+	for update := range updates {
+		if update.Message == nil {
+			continue
+		}
+		message := model.Message{
+			TelegramMessage: &update,
+		}
+		dataRoutes.HandleMessage(&message)
 	}
 }

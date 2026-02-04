@@ -13,6 +13,7 @@ const (
 	TELEGRAM_BOT_TOKEN string = "TELEGRAM_BOT_TOKEN"
 	SERVICE_HOST       string = "SERVICE_HOST"
 	VALKEY_HOST        string = "VALKEY_HOST"
+	EVIRONMENT         string = "ENVIRONMENT"
 )
 
 func AssertEnvVars() error {
@@ -39,4 +40,8 @@ func AssertEnvVars() error {
 	}
 
 	return nil
+}
+
+func IsDevelopment() bool {
+	return os.Getenv(EVIRONMENT) == "development"
 }

@@ -2,7 +2,6 @@ package routes
 
 import (
 	"fmt"
-	"net/http"
 	"telegram-spreadsheet-editor/errors"
 	"telegram-spreadsheet-editor/model"
 	"telegram-spreadsheet-editor/services"
@@ -17,106 +16,61 @@ type DataRoutes struct {
 	StorageService     services.IStorageService
 }
 
-func (r *DataRoutes) HandleMessage(resp http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		zap.L().Error("Tried to handle message with wrong verb", zap.String("method", req.Method))
-		http.Error(resp, "invalid method", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (r *DataRoutes) HandleMessage(message *model.Message) {
 	zap.L().Info("Starting message handle")
 
 	// get command
-	command, err := r.MessagingService.GetCommandFromMessage(req.Body)
+	// to handle multiple inputs we need a master message service that calls the sub ones to get the info it needs
+	command, err := r.MessagingService.GetCommandFromMessage(message)
 	if err != nil {
 		switch err := err.(type) {
 		case *errors.CommandError:
 			// check if the user is not wanted
 			if err.Unauthorized {
 				r.MessagingService.SendTextMessage(err.ChatId, "Go away you prune head!")
-				resp.WriteHeader(http.StatusOK)
 				return
 			}
 			// otherwise just send back the response
-			if err := r.MessagingService.SendTextMessage(err.ChatId, err.ResponseMessage); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(err.ChatId, err.ResponseMessage)
 			return
 		default:
-			http.Error(resp, "", http.StatusFailedDependency)
 			return
 		}
 	}
 
-	zap.L().Info("Handling telegram message", zap.Uint8("type", command.Type))
+	zap.L().Info("Handling message", zap.Uint8("type", command.Type))
 
 	switch command.Type {
 	case model.COMMAND_TYPE_PING:
-		if err := r.MessagingService.SendTextMessage(command.ChatId, "Pong"); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.SendTextMessage(command.ChatId, "Pong")
 	case model.COMMAND_TYPE_LIST:
-		if err := r.MessagingService.SendTextMessage(command.ChatId, "Listing... Hang tight..."); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.SendTextMessage(command.ChatId, "Listing... Hang tight...")
 		sheet, err := r.DataService.GetSpreadsheet()
 		if err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
 		entries, err := r.SpreadsheetService.ListCategoriesAndValues(sheet)
 		if err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
-		if err := r.MessagingService.SendEntryList(command.ChatId, entries); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.SendEntryList(command.ChatId, entries)
 	case model.COMMAND_TYPE_UPDATE:
 		sheet, err := r.DataService.GetSpreadsheet()
 		if err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
 		entries, err := r.SpreadsheetService.ListCategoriesAndValues(sheet)
 		if err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
-		if err := r.MessagingService.SendCategorySelectionKeyboard(command.ChatId, entries, "UPDATE"); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.SendCategorySelectionKeyboard(command.ChatId, entries, "UPDATE")
 	case model.COMMAND_TYPE_UPDATE_CATEGORY_CHOSEN:
-		if err := r.MessagingService.RemoveMarkupFromMessage(command.ChatId, command.MessageId); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
-		if err := r.MessagingService.SendTextMessage(command.ChatId, fmt.Sprintf("How much to we add to %s?", *command.UpdateData.Category)); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.RemoveMarkupFromMessage(command.ChatId, command.MessageId)
+		r.MessagingService.SendTextMessage(command.ChatId, fmt.Sprintf("How much to we add to %s?", *command.UpdateData.Category))
 	case model.COMMAND_TYPE_NUMERICAL_AMOUNT:
 		// need to fetch the previous command
 		prevCommand, err := r.StorageService.GetPreviousCommand(command.UserId)
@@ -124,31 +78,17 @@ func (r *DataRoutes) HandleMessage(resp http.ResponseWriter, req *http.Request) 
 			switch err := err.(type) {
 			case *errors.StorageError:
 				if err.Type == errors.STORAGE_ERROR_TYPE_NOT_FOUND {
-					if err := r.MessagingService.SendTextMessage(command.ChatId, "Not sure what to do with that boyo. Type HELP."); err != nil {
-						http.Error(resp, "", http.StatusFailedDependency)
-						return
-					}
-
-					resp.WriteHeader(http.StatusOK)
+					r.MessagingService.SendTextMessage(command.ChatId, "Not sure what to do with that boyo. Type HELP.")
 					return
 				}
 			default:
-				if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-					http.Error(resp, "", http.StatusFailedDependency)
-					return
-				}
-				resp.WriteHeader(http.StatusOK)
+				r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 				return
 			}
 		}
 
 		if prevCommand.Type != model.COMMAND_TYPE_UPDATE_CATEGORY_CHOSEN {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Not sure what to do with that boyo. Type HELP."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Not sure what to do with that boyo. Type HELP.")
 			return
 		}
 
@@ -156,220 +96,122 @@ func (r *DataRoutes) HandleMessage(resp http.ResponseWriter, req *http.Request) 
 		fullCommand := model.MergeUpdateCommandWithFinancial(prevCommand, command)
 
 		// ui feedback
-		if err := r.MessagingService.SendTextMessage(command.ChatId, "On it, hang tight..."); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.SendTextMessage(command.ChatId, "On it, hang tight...")
 
 		// get sheet
 		sheet, err := r.DataService.GetSpreadsheet()
 		if err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
 
 		// update sheet
 		updated, newVal, err := r.SpreadsheetService.AddValueForCategory(sheet, *fullCommand.UpdateData.Category, *fullCommand.UpdateData.Value)
 		if err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
 
 		// save sheet
 		if err := r.DataService.WriteSpreadsheet(updated); err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
 
 		// done!
-		if err := r.MessagingService.SendTextMessage(command.ChatId, fmt.Sprintf("Added £%.2f to %s. New total: %s", *fullCommand.UpdateData.Value, *fullCommand.UpdateData.Category, *newVal)); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.SendTextMessage(command.ChatId, fmt.Sprintf("Added £%.2f to %s. New total: %s", *fullCommand.UpdateData.Value, *fullCommand.UpdateData.Category, *newVal))
 	case model.COMMAND_TYPE_READ:
 		sheet, err := r.DataService.GetSpreadsheet()
 		if err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
 		entries, err := r.SpreadsheetService.ListCategoriesAndValues(sheet)
 		if err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
-		if err := r.MessagingService.SendCategorySelectionKeyboard(command.ChatId, entries, "READ"); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.SendCategorySelectionKeyboard(command.ChatId, entries, "READ")
 	case model.COMMAND_TYPE_READ_CATEGORY_CHOSEN:
 		r.MessagingService.RemoveMarkupFromMessage(command.ChatId, command.MessageId)
-
-		if err := r.MessagingService.SendTextMessage(command.ChatId, "On it, hang tight home slice..."); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.SendTextMessage(command.ChatId, "On it, hang tight home slice...")
 
 		sheet, err := r.DataService.GetSpreadsheet()
 		if err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
 		val, err := r.SpreadsheetService.ReadValueForCategory(sheet, command.ReadData.Category, false)
 		if err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
 		// done!
-		if err := r.MessagingService.SendTextMessage(command.ChatId, fmt.Sprintf("Current total for %s: %s", command.ReadData.Category, *val)); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.SendTextMessage(command.ChatId, fmt.Sprintf("Current total for %s: %s", command.ReadData.Category, *val))
 	case model.COMMAND_TYPE_DETAILS:
 		sheet, err := r.DataService.GetSpreadsheet()
 		if err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
 		entries, err := r.SpreadsheetService.ListCategoriesAndValues(sheet)
 		if err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
-		if err := r.MessagingService.SendCategorySelectionKeyboard(command.ChatId, entries, "DETAILS"); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.SendCategorySelectionKeyboard(command.ChatId, entries, "DETAILS")
 	case model.COMMAND_TYPE_DETAILS_CATEGORY_CHOSEN:
 		r.MessagingService.RemoveMarkupFromMessage(command.ChatId, command.MessageId)
 
-		if err := r.MessagingService.SendTextMessage(command.ChatId, "On it, hang tight home slice..."); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.SendTextMessage(command.ChatId, "On it, hang tight home slice...")
 
 		sheet, err := r.DataService.GetSpreadsheet()
 		if err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
 		val, err := r.SpreadsheetService.ReadValueForCategory(sheet, command.DetailsData.Category, true)
 		if err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
 		// done!
-		if err := r.MessagingService.SendTextMessage(command.ChatId, fmt.Sprintf("Details for for %s: %s", command.DetailsData.Category, *val)); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.SendTextMessage(command.ChatId, fmt.Sprintf("Details for for %s: %s", command.DetailsData.Category, *val))
 	case model.COMMAND_TYPE_REMOVE:
 		sheet, err := r.DataService.GetSpreadsheet()
 		if err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
 		entries, err := r.SpreadsheetService.ListCategoriesAndValues(sheet)
 		if err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
-		if err := r.MessagingService.SendCategorySelectionKeyboard(command.ChatId, entries, "REMOVE"); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.SendCategorySelectionKeyboard(command.ChatId, entries, "REMOVE")
 	case model.COMMAND_TYPE_REMOVE_CATEGORY_CHOSEN:
 		r.MessagingService.RemoveMarkupFromMessage(command.ChatId, command.MessageId)
 
-		if err := r.MessagingService.SendTextMessage(command.ChatId, fmt.Sprintf("Removing last added value from %s", command.RemoveData.Category)); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.SendTextMessage(command.ChatId, fmt.Sprintf("Removing last added value from %s", command.RemoveData.Category))
 		// get sheet
 		sheet, err := r.DataService.GetSpreadsheet()
 		if err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
 		// remove last value
 		res, err := r.SpreadsheetService.RemoveLastValueForCategory(sheet, command.RemoveData.Category)
 		if err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
 		// update sheet
 		if err := r.DataService.WriteSpreadsheet(res.ModifiedSheet); err != nil {
-			if err := r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong..."); err != nil {
-				http.Error(resp, "", http.StatusFailedDependency)
-				return
-			}
-			resp.WriteHeader(http.StatusOK)
+			r.MessagingService.SendTextMessage(command.ChatId, "Something went wrong...")
 			return
 		}
 		// done!
-		if err := r.MessagingService.SendTextMessage(command.ChatId, fmt.Sprintf("Removed %s from %s. Was %s and is now %s.", res.RemovedValue, command.RemoveData.Category, res.OldValue, res.NewValue)); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.SendTextMessage(command.ChatId, fmt.Sprintf("Removed %s from %s. Was %s and is now %s.", res.RemovedValue, command.RemoveData.Category, res.OldValue, res.NewValue))
 	case model.COMMAND_TYPE_HELP:
 		helpText := `The following commands are available with this epic finance bot.
 PING - Pong.
@@ -379,45 +221,19 @@ READ - Read the value of a category.
 DETAILS - Get all the costs of a category e.g. 2+4+6.
 REMOVE - Delete the last added amount in a category.
 HELP - Print this help list.`
-		if err := r.MessagingService.SendTextMessage(command.ChatId, helpText); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.SendTextMessage(command.ChatId, helpText)
 	case model.COMMAND_TYPE_DORIS:
-		if err := r.MessagingService.SendTextMessage(command.ChatId, "\U0001F99B"); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.SendTextMessage(command.ChatId, "\U0001F99B")
 	case model.COMMAND_TYPE_BOOBS:
-		if err := r.MessagingService.SendTextMessage(command.ChatId, "They're great aren't they."); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.SendTextMessage(command.ChatId, "They're great aren't they.")
 	case model.COMMAND_TYPE_ALICE:
-		if err := r.MessagingService.SendTextMessage(command.ChatId, "Woooooo!"); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
-		if err := r.MessagingService.SendTextMessage(command.ChatId, "\U0001F478"); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
-		if err := r.MessagingService.SendTextMessage(command.ChatId, "\U00002728"); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
-		if err := r.MessagingService.SendTextMessage(command.ChatId, "\u2764\ufe0f"); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
-		if err := r.MessagingService.SendTextMessage(command.ChatId, "\U0001F478 \U00002728 \u2764\ufe0f"); err != nil {
-			http.Error(resp, "", http.StatusFailedDependency)
-			return
-		}
+		r.MessagingService.SendTextMessage(command.ChatId, "Woooooo!")
+		r.MessagingService.SendTextMessage(command.ChatId, "\U0001F478")
+		r.MessagingService.SendTextMessage(command.ChatId, "\U00002728")
+		r.MessagingService.SendTextMessage(command.ChatId, "\u2764\ufe0f")
+		r.MessagingService.SendTextMessage(command.ChatId, "\U0001F478 \U00002728 \u2764\ufe0f")
 	}
 
 	// update command for user for next call (THIS MUST GO LAST)
 	r.StorageService.StoreCommand(command, command.UserId)
-
-	resp.WriteHeader(http.StatusOK)
 }

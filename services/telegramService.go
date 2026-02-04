@@ -1,9 +1,7 @@
 package services
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"slices"
 	"strings"
@@ -15,7 +13,7 @@ import (
 )
 
 type IMessagingService interface {
-	GetCommandFromMessage(request io.ReadCloser) (*model.Command, error)
+	GetCommandFromMessage(message *model.Message) (*model.Command, error)
 	SendTextMessage(chatId int64, message string) error
 	SendEntryList(chatId int64, entries *[]model.Entry) error
 	SendCategorySelectionKeyboard(chatId int64, entries *[]model.Entry, command string) error
@@ -30,13 +28,13 @@ const (
 	ALLOWED_USERS_KEY string = "TELEGRAM_ALLOWED_USERS"
 )
 
-func (s *TelegramService) GetCommandFromMessage(request io.ReadCloser) (*model.Command, error) {
-	var update tgbotapi.Update
-	if err := json.NewDecoder(request).Decode(&update); err != nil {
-		zap.L().DPanic("Failed to parse telegram update", zap.Error(err))
-		return nil, fmt.Errorf("Failed to parse telegram update")
+func (s *TelegramService) GetCommandFromMessage(message *model.Message) (*model.Command, error) {
+	if message.TelegramMessage == nil {
+		zap.L().DPanic("Unhandled message source - telegram currently only input available")
+		return nil, fmt.Errorf("Unhandled message source - telegram currently only input available")
 	}
 
+	update := message.TelegramMessage
 	allowedUsers := os.Getenv(ALLOWED_USERS_KEY)
 	users := strings.Split(allowedUsers, ",")
 
@@ -96,7 +94,7 @@ func (s *TelegramService) SendTextMessage(chatId int64, message string) error {
 func (s *TelegramService) SendEntryList(chatId int64, entries *[]model.Entry) error {
 	var builder strings.Builder
 	for _, e := range *entries {
-		builder.WriteString(fmt.Sprintf("%s %s\n", e.Category, e.Value))
+		fmt.Fprintf(&builder, "%s %s\n", e.Category, e.Value)
 	}
 
 	msg := tgbotapi.NewMessage(chatId, builder.String())
