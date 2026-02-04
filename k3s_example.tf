@@ -1,7 +1,7 @@
 # redis
-resource "kubernetes_deployment" "finances_redis" {
+resource "kubernetes_deployment" "finances_valkey" {
   metadata {
-    name      = "finances-redis"
+    name      = "finances-valkey"
     namespace = "default"
   }
 
@@ -9,21 +9,21 @@ resource "kubernetes_deployment" "finances_redis" {
     replicas = 1
     selector {
       match_labels = {
-        app = "finances-redis"
+        app = "finances-valkey"
       }
     }
 
     template {
       metadata {
         labels = {
-          app = "finances-redis"
+          app = "finances-valkey"
         }
       }
 
       spec {
         container {
-          name  = "finances-redis"
-          image = "redis:8-alpine"
+          name  = "finances-valkey"
+          image = "valkey:9-alpine"
           port {
             container_port = 6379
           }
@@ -33,15 +33,15 @@ resource "kubernetes_deployment" "finances_redis" {
   }
 }
 
-resource "kubernetes_service" "finances_redis" {
+resource "kubernetes_service" "finances_valkey" {
   metadata {
-    name      = "finances-redis"
+    name      = "finances-valkey"
     namespace = "default"
   }
 
   spec {
     selector = {
-      app = "finances-redis"
+      app = "finances-valkey"
     }
 
     port {
@@ -124,8 +124,8 @@ resource "kubernetes_deployment" "finances_editor" {
             value = "https://my-cool-domain.com"
           }
           env {
-            name  = "REDIS_HOST"
-            value = "${kubernetes_service.finances_redis.metadata[0].name}:6379"
+            name  = "VALKEY_HOST"
+            value = "${kubernetes_service.finances_valkey.metadata[0].name}:6379"
           }
           env {
             name  = "LOG_LEVEL"

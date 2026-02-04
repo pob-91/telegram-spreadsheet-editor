@@ -85,7 +85,7 @@ This will start the stack locally and expose the API via `localhost:8080`. Then 
 
 > If you want to debug and make edits:
 
-Make sure you have go installed, install the dependencies (`go mod tidy`) and run either with your debugger. The makefile has a `make redis` command that will start a redis instance for you which is required by the project. Use something like [ngrok](https://ngrok.com/) to interact with the Telegram bot.
+Make sure you have go installed, install the dependencies (`go mod tidy`) and run either with your debugger. The makefile has a `make valkey` command that will start a valkey instance for you which is required by the project. Use something like [ngrok](https://ngrok.com/) to interact with the Telegram bot.
 
 ### Environment Variables
 
@@ -105,7 +105,7 @@ Make sure you have go installed, install the dependencies (`go mod tidy`) and ru
 | **TELEGRAM_BOT_TOKEN** | The token for your telegram bot | | true |
 | **TELEGRAM_ALLOWED_USERS** | A comma sepaarated list of telegram user IDs. If set then the API will reject unrecognised users. | | false |
 | **SERVICE_HOST** | Public URL that Telegram can use to communicate with this API. E.g. `https://my-cool-bot.com`. If using `ngrok` then set this variable to the ngrok url | | true |
-| **REDIS_HOST** | The redis URL. If running via docker compose set to redis:6379. If running locally set to localhost:6379. | | true |
+| **VALKEY_HOST** | The valkey URL. If running via docker compose set to valkey:6379. If running locally set to localhost:6379. | | true |
 
 ### Contributing
 

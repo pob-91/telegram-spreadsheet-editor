@@ -10,7 +10,7 @@ import (
 	"telegram-spreadsheet-editor/model"
 	"time"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/valkey-io/valkey-go"
 	"go.uber.org/zap"
 )
 
@@ -19,26 +19,30 @@ type IStorageService interface {
 	GetPreviousCommand(userId int64) (*model.Command, error)
 }
 
-type RedisStorageService struct {
-	Client *redis.Client
+type ValkeyStorageService struct {
+	Client valkey.Client
 }
 
 const (
-	REDIS_HOST_KEY string = "REDIS_HOST"
+	VALKEY_HOST_KEY string = "VALKEY_HOST"
 )
 
-func NewRedisStorageService() *RedisStorageService {
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     os.Getenv(REDIS_HOST_KEY),
-		Password: "", // no password set
-		DB:       0,  // use default DB
+func NewValkeyStorageService() *ValkeyStorageService {
+	client, err := valkey.NewClient(valkey.ClientOption{
+		InitAddress: []string{
+			os.Getenv(VALKEY_HOST_KEY),
+		},
 	})
-	return &RedisStorageService{
-		Client: rdb,
+	if err != nil {
+		zap.L().Panic("Failed to init valkey client", zap.Error(err))
+	}
+
+	return &ValkeyStorageService{
+		Client: client,
 	}
 }
 
-func (s *RedisStorageService) StoreCommand(command *model.Command, userId int64) error {
+func (s *ValkeyStorageService) StoreCommand(command *model.Command, userId int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
@@ -48,7 +52,8 @@ func (s *RedisStorageService) StoreCommand(command *model.Command, userId int64)
 		return fmt.Errorf("Failed to serialise command")
 	}
 
-	if err := s.Client.Set(ctx, strconv.FormatInt(userId, 10), string(json), time.Minute*15).Err(); err != nil {
+	key := strconv.FormatInt(userId, 10)
+	if err := s.Client.Do(ctx, s.Client.B().Set().Key(key).Value(string(json)).Build()).Error(); err != nil {
 		zap.L().Error("Failed to set command for user", zap.Error(err))
 		return fmt.Errorf("Failed to set command for user")
 	}
@@ -56,13 +61,13 @@ func (s *RedisStorageService) StoreCommand(command *model.Command, userId int64)
 	return nil
 }
 
-func (s *RedisStorageService) GetPreviousCommand(userId int64) (*model.Command, error) {
+func (s *ValkeyStorageService) GetPreviousCommand(userId int64) (*model.Command, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	jsonStr, err := s.Client.Get(ctx, strconv.FormatInt(userId, 10)).Result()
+	jsonStr, err := s.Client.Do(ctx, s.Client.B().Get().Key(strconv.FormatInt(userId, 10)).Build()).ToString()
 	if err != nil {
-		if err == redis.Nil {
+		if err == valkey.Nil {
 			return nil, &errors.StorageError{
 				Type: errors.STORAGE_ERROR_TYPE_NOT_FOUND,
 			}

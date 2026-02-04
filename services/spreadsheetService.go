@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"telegram-spreadsheet-editor/model"
@@ -144,20 +145,30 @@ func (s *ExcelerizeSpreadsheetService) AddValueForCategory(sheet io.Reader, cate
 			return nil, nil, fmt.Errorf("Failed to get cell value")
 		}
 
-		norm := strings.ReplaceAll(val, "£", "")
-		norm = strings.ReplaceAll(norm, " ", "")
+		numericRegex := regexp.MustCompile(`-?\d+(?:,\d{3})*(?:\.\d+)?`)
+		numericStr := numericRegex.FindString(val)
+		numericStr = strings.ReplaceAll(numericStr, ",", "")
 
-		if len(val) > 0 && strings.Compare(val, "£0.00") != 0 {
-			valueToAdd = &norm
+		if len(numericStr) > 0 {
+			floatVal, err := strconv.ParseFloat(numericStr, 32)
+			if err != nil {
+				zap.L().Warn("Failed to parse numeric value from cell", zap.Error(err), zap.String("string", numericStr))
+			} else if floatVal != 0 {
+				valueToAdd = &numericStr
+				zap.L().Info("Found existing value to add to fomula", zap.String("value", numericStr))
+			}
 		}
 	}
 
 	zap.L().Info("Staring formula update", zap.String("current formula", form))
 
 	var updatedFormula string
+	isValue := false // whether to use set value rather than set formula
+
 	if (len(form) == 0 || strings.Compare(form, "0") == 0) && valueToAdd == nil {
 		// set the first value
 		updatedFormula = fmt.Sprintf("%.2f", value)
+		isValue = true
 	} else if valueToAdd != nil {
 		// include the old value
 		updatedFormula = fmt.Sprintf("%s+%.2f", *valueToAdd, value)
@@ -166,7 +177,36 @@ func (s *ExcelerizeSpreadsheetService) AddValueForCategory(sheet io.Reader, cate
 		updatedFormula = fmt.Sprintf("%s+%.2f", form, value)
 	}
 
-	zap.L().Info("Setting cell formula", zap.String("formula", updatedFormula))
+	if isValue {
+		zap.L().Info(
+			"Setting cell value as there was nothing there. Will change to formula next time.",
+			zap.Float32("value", value),
+			zap.String("sheet", sheetName),
+			zap.String("cell", cell),
+		)
+
+		if err := f.SetCellValue(sheetName, cell, value); err != nil {
+			zap.L().Error("Failed to set the cell's value", zap.Error(err))
+			return nil, nil, fmt.Errorf("Failed to set cell value")
+		}
+
+		// We can skip the rest as it is all related to formulas
+		updatedValue, err := f.GetCellValue(sheetName, cell)
+		if err != nil {
+			zap.L().Error("Failed to get updated cell value", zap.Error(err))
+			return nil, nil, fmt.Errorf("Failed to get updated value")
+		}
+
+		// return the spreadhseet as an io.Reader
+		var buffer bytes.Buffer
+		if err := f.Write(&buffer); err != nil {
+			zap.L().Error("Failed to write spreadsheet to buffer", zap.Error(err))
+		}
+
+		return bytes.NewReader(buffer.Bytes()), &updatedValue, nil
+	}
+
+	zap.L().Info("Setting cell formula", zap.String("formula", updatedFormula), zap.String("Sheet", sheetName), zap.String("cell", cell))
 
 	if err := f.SetCellFormula(sheetName, cell, updatedFormula); err != nil {
 		zap.L().Error("Failed to set the cell's formula", zap.Error(err), zap.String("formula", updatedFormula))

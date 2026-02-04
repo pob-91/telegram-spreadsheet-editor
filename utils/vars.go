@@ -12,7 +12,7 @@ const (
 	VALUE_COLUMN       string = "VALUE_COLUMN"
 	TELEGRAM_BOT_TOKEN string = "TELEGRAM_BOT_TOKEN"
 	SERVICE_HOST       string = "SERVICE_HOST"
-	REDIS_HOST         string = "REDIS_HOST"
+	VALKEY_HOST        string = "VALKEY_HOST"
 )
 
 func AssertEnvVars() error {
@@ -34,8 +34,8 @@ func AssertEnvVars() error {
 	if len(os.Getenv(SERVICE_HOST)) == 0 {
 		return fmt.Errorf("Missing env var %s", SERVICE_HOST)
 	}
-	if len(os.Getenv(REDIS_HOST)) == 0 {
-		return fmt.Errorf("Missing env var %s", REDIS_HOST)
+	if len(os.Getenv(VALKEY_HOST)) == 0 {
+		return fmt.Errorf("Missing env var %s", VALKEY_HOST)
 	}
 
 	return nil
