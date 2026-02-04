@@ -115,6 +115,7 @@ func main() {
 
 	zap.L().Info("Creating new telegram webhook", zap.String("host", serviceHost))
 
+	// TODO: Update this to use the golang chan to get updates if it works
 	wh, err := tgbotapi.NewWebhook(fmt.Sprintf("%s/%s", serviceHost, bot.Token))
 	if err != nil {
 		zap.L().Panic("Failed to create telegram bot webhook", zap.Error(err))
@@ -133,14 +134,14 @@ func main() {
 	telegramService := services.TelegramService{
 		Bot: bot,
 	}
-	redisStorageService := services.NewRedisStorageService()
+	valkeyStorageService := services.NewValkeyStorageService()
 
 	// routes
 	dataRoutes := routes.DataRoutes{
 		DataService:        &dataService,
 		SpreadsheetService: &spreadsheetService,
 		MessagingService:   &telegramService,
-		StorageService:     redisStorageService,
+		StorageService:     valkeyStorageService,
 	}
 
 	// register routes
