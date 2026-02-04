@@ -8,6 +8,7 @@ require (
 	github.com/valkey-io/valkey-go v1.0.71
 	github.com/xuri/excelize/v2 v2.10.0
 	go.uber.org/zap v1.27.1
+	go.yaml.in/yaml/v3 v3.0.4
 )
 
 require (
