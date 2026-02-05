@@ -16,11 +16,10 @@ import (
 )
 
 const (
-	BOT_TOKEN_KEY    string = "TELEGRAM_BOT_TOKEN"
-	SERVICE_HOST_KEY string = "SERVICE_HOST"
-	HOST_KEY         string = "HOST"
-	PORT_KEY         string = "PORT"
-	LOG_LEVEL_KEY    string = "LOG_LEVEL"
+	BOT_TOKEN_KEY string = "TELEGRAM_BOT_TOKEN"
+	HOST_KEY      string = "HOST"
+	PORT_KEY      string = "PORT"
+	LOG_LEVEL_KEY string = "LOG_LEVEL"
 )
 
 func setupLogger() {
@@ -129,7 +128,7 @@ func main() {
 	updates := bot.GetUpdatesChan(u)
 
 	for update := range updates {
-		if update.Message == nil {
+		if update.Message == nil && update.CallbackQuery == nil {
 			continue
 		}
 		message := model.Message{

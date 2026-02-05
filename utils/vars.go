@@ -32,9 +32,6 @@ func AssertEnvVars() error {
 	if len(os.Getenv(TELEGRAM_BOT_TOKEN)) == 0 {
 		return fmt.Errorf("Missing env var %s", TELEGRAM_BOT_TOKEN)
 	}
-	if len(os.Getenv(SERVICE_HOST)) == 0 {
-		return fmt.Errorf("Missing env var %s", SERVICE_HOST)
-	}
 	if len(os.Getenv(VALKEY_HOST)) == 0 {
 		return fmt.Errorf("Missing env var %s", VALKEY_HOST)
 	}
