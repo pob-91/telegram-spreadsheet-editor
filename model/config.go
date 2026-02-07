@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -13,6 +14,11 @@ const (
 
 const (
 	SOURCE_TYPE_NEXTCLOUD string = "nextcloud"
+)
+
+var (
+	cfg  *Config
+	once sync.Once
 )
 
 type Input interface {
@@ -80,6 +86,16 @@ func NewConfigFromFile(path string) (*Config, error) {
 	}
 
 	return &cfg, nil
+}
+
+func RegisterConfig(c *Config) {
+	once.Do(func() {
+		cfg = c
+	})
+}
+
+func GetConfig() *Config {
+	return cfg
 }
 
 // Unmarshalling
