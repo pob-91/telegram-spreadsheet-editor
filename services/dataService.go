@@ -7,14 +7,15 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"telegram-spreadsheet-editor/model"
 	"telegram-spreadsheet-editor/utils"
 
 	"go.uber.org/zap"
 )
 
 type IDataService interface {
-	GetSpreadsheet() (io.Reader, error)
-	WriteSpreadsheet(sheet io.Reader) error
+	GetSpreadsheet(source model.SpreadsheetSource) (io.Reader, error)
+	WriteSpreadsheet(source model.SpreadsheetSource, sheet io.Reader) error
 }
 
 type NCDataService struct {
@@ -28,18 +29,26 @@ const (
 	PASSWORD_KEY       string = "BASIC_AUTH_PASSWORD"
 )
 
-func (s *NCDataService) GetSpreadsheet() (io.Reader, error) {
-	fileUrl, err := getFileUrl()
+func (s *NCDataService) GetSpreadsheet(source model.SpreadsheetSource) (io.Reader, error) {
+	ncSource, err := getSource(source)
 	if err != nil {
 		return nil, err
 	}
 
-	user := os.Getenv(USER_KEY)
-	password := os.Getenv(PASSWORD_KEY)
+	fileUrl, err := getFileUrl(ncSource)
+	if err != nil {
+		return nil, err
+	}
+
+	password, exists := os.LookupEnv(ncSource.PasswordEnv)
+	if !exists {
+		zap.L().Error("Expected to find nextcloud user password", zap.String("var", ncSource.PasswordEnv))
+		return nil, fmt.Errorf("Expected to find nextcloud user password")
+	}
 
 	opts := utils.HttpOptions{}
-	if len(user) > 0 && len(password) > 0 {
-		opts.BasicAuthUser = &user
+	if len(ncSource.User) > 0 && len(password) > 0 {
+		opts.BasicAuthUser = &ncSource.User
 		opts.BasicAuthPassword = &password
 	}
 
@@ -59,8 +68,13 @@ func (s *NCDataService) GetSpreadsheet() (io.Reader, error) {
 	return bytes.NewReader(*response.Body), nil
 }
 
-func (s *NCDataService) WriteSpreadsheet(sheet io.Reader) error {
-	fileUrl, err := getFileUrl()
+func (s *NCDataService) WriteSpreadsheet(source model.SpreadsheetSource, sheet io.Reader) error {
+	ncSource, err := getSource(source)
+	if err != nil {
+		return err
+	}
+
+	fileUrl, err := getFileUrl(ncSource)
 	if err != nil {
 		return err
 	}
@@ -71,15 +85,18 @@ func (s *NCDataService) WriteSpreadsheet(sheet io.Reader) error {
 		return fmt.Errorf("Failed to read sheet")
 	}
 
-	user := os.Getenv(USER_KEY)
-	password := os.Getenv(PASSWORD_KEY)
+	password, exists := os.LookupEnv(ncSource.PasswordEnv)
+	if !exists {
+		zap.L().Error("Expected to find nextcloud user password.", zap.String("var", ncSource.PasswordEnv))
+		return fmt.Errorf("Expected to find nextcloud user password")
+	}
 
 	opts := utils.HttpOptions{
 		ContentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 	}
 
-	if len(user) > 0 && len(password) > 0 {
-		opts.BasicAuthUser = &user
+	if len(ncSource.User) > 0 && len(password) > 0 {
+		opts.BasicAuthUser = &ncSource.User
 		opts.BasicAuthPassword = &password
 	}
 
@@ -94,17 +111,29 @@ func (s *NCDataService) WriteSpreadsheet(sheet io.Reader) error {
 }
 
 // private
-func getFileUrl() (string, error) {
-	baseUrl := os.Getenv(BASE_URL_KEY)
-	filePath := os.Getenv(XLSX_FILE_PATH_KEY)
 
-	u, err := url.Parse(baseUrl)
+func getSource(source model.SpreadsheetSource) (*model.NextcloudSpreadsheetSource, error) {
+	if source == nil {
+		zap.L().DPanic("Spreadsheet source is nil.")
+		return nil, fmt.Errorf("Spreadsheet source is nil")
+	}
+	ncSource, ok := source.(*model.NextcloudSpreadsheetSource)
+	if !ok {
+		zap.L().Error("Expected nextcloud spreadsheet source.", zap.String("type", source.GetType()))
+		return nil, fmt.Errorf("Expected nextcloud spreadsheet source")
+	}
+
+	return ncSource, nil
+}
+
+func getFileUrl(source *model.NextcloudSpreadsheetSource) (string, error) {
+	u, err := url.Parse(source.BaseUrl)
 	if err != nil {
-		zap.L().DPanic("Failed to parse base url", zap.String("url", baseUrl), zap.Error(err))
+		zap.L().DPanic("Failed to parse base url", zap.String("url", source.BaseUrl), zap.Error(err))
 		return "", fmt.Errorf("URL error")
 	}
 
-	u.Path = path.Join(u.Path, filePath)
+	u.Path = path.Join(u.Path, source.FilePath)
 
 	return u.String(), nil
 }

@@ -2,8 +2,6 @@ package services
 
 import (
 	"fmt"
-	"os"
-	"slices"
 	"strings"
 	e "telegram-spreadsheet-editor/errors"
 	"telegram-spreadsheet-editor/model"
@@ -13,20 +11,14 @@ import (
 )
 
 type IMessagingService interface {
-	GetCommandFromMessage(message *model.Message) (*model.Command, error)
-	SendTextMessage(chatId int64, message string) error
-	SendEntryList(chatId int64, entries *[]model.Entry) error
-	SendCategorySelectionKeyboard(chatId int64, entries *[]model.Entry, command string) error
-	RemoveMarkupFromMessage(chatId int64, messageId int) error
+	GetCommandFromMessage(m *model.Message) (*model.Command, error)
+	SendTextMessage(m *model.Message, chatId int64, message string) error
+	SendEntryList(m *model.Message, chatId int64, entries *[]model.Entry) error
+	SendCategorySelectionKeyboard(m *model.Message, chatId int64, entries *[]model.Entry, command string) error
+	RemoveMarkupFromMessage(m *model.Message, chatId int64, messageId int) error
 }
 
-type TelegramService struct {
-	Bot *tgbotapi.BotAPI
-}
-
-const (
-	ALLOWED_USERS_KEY string = "TELEGRAM_ALLOWED_USERS"
-)
+type TelegramService struct{}
 
 func (s *TelegramService) GetCommandFromMessage(message *model.Message) (*model.Command, error) {
 	if message.TelegramMessage == nil {
@@ -34,9 +26,8 @@ func (s *TelegramService) GetCommandFromMessage(message *model.Message) (*model.
 		return nil, fmt.Errorf("Unhandled message source - telegram currently only input available")
 	}
 
-	update := message.TelegramMessage
-	allowedUsers := os.Getenv(ALLOWED_USERS_KEY)
-	users := strings.Split(allowedUsers, ",")
+	update := message.TelegramMessage.Update
+	bot := message.TelegramMessage.Bot
 
 	var userId int64
 	if update.CallbackQuery != nil {
@@ -45,7 +36,7 @@ func (s *TelegramService) GetCommandFromMessage(message *model.Message) (*model.
 		userId = update.Message.From.ID
 	}
 
-	if len(users) > 0 && !slices.Contains(users, fmt.Sprintf("%d", userId)) {
+	if message.TelegramMessage.UserId != userId {
 		zap.L().Warn("User not allowed", zap.Int64("userId", userId))
 		return nil, &e.CommandError{
 			Unauthorized:    true,
@@ -57,7 +48,7 @@ func (s *TelegramService) GetCommandFromMessage(message *model.Message) (*model.
 	if update.CallbackQuery != nil {
 		// this is a response to something like an inline keyboard so process
 		callback := tgbotapi.NewCallback(update.CallbackQuery.ID, "")
-		if _, err := s.Bot.Request(callback); err != nil {
+		if _, err := bot.Request(callback); err != nil {
 			zap.L().Error("Failed to respond to telegram callback", zap.Error(err))
 			return nil, &e.CommandError{
 				ChatId:          update.CallbackQuery.Message.Chat.ID,
@@ -81,9 +72,9 @@ func (s *TelegramService) GetCommandFromMessage(message *model.Message) (*model.
 	return command, nil
 }
 
-func (s *TelegramService) SendTextMessage(chatId int64, message string) error {
+func (s *TelegramService) SendTextMessage(m *model.Message, chatId int64, message string) error {
 	msg := tgbotapi.NewMessage(chatId, message)
-	if _, err := s.Bot.Send(msg); err != nil {
+	if _, err := m.TelegramMessage.Bot.Send(msg); err != nil {
 		zap.L().Error("Failed to send telegram text message", zap.Error(err))
 		return fmt.Errorf("Failed to sent bot message")
 	}
@@ -91,14 +82,14 @@ func (s *TelegramService) SendTextMessage(chatId int64, message string) error {
 	return nil
 }
 
-func (s *TelegramService) SendEntryList(chatId int64, entries *[]model.Entry) error {
+func (s *TelegramService) SendEntryList(m *model.Message, chatId int64, entries *[]model.Entry) error {
 	var builder strings.Builder
 	for _, e := range *entries {
 		fmt.Fprintf(&builder, "%s %s\n", e.Category, e.Value)
 	}
 
 	msg := tgbotapi.NewMessage(chatId, builder.String())
-	if _, err := s.Bot.Send(msg); err != nil {
+	if _, err := m.TelegramMessage.Bot.Send(msg); err != nil {
 		zap.L().Error("Failed to send telegram entries message", zap.Error(err))
 		return fmt.Errorf("Failed to send bot entries message")
 	}
@@ -106,7 +97,7 @@ func (s *TelegramService) SendEntryList(chatId int64, entries *[]model.Entry) er
 	return nil
 }
 
-func (s *TelegramService) SendCategorySelectionKeyboard(chatId int64, entries *[]model.Entry, command string) error {
+func (s *TelegramService) SendCategorySelectionKeyboard(m *model.Message, chatId int64, entries *[]model.Entry, command string) error {
 	currentButtons := []tgbotapi.InlineKeyboardButton{}
 	buttonRows := [][]tgbotapi.InlineKeyboardButton{}
 
@@ -121,7 +112,7 @@ func (s *TelegramService) SendCategorySelectionKeyboard(chatId int64, entries *[
 	msg := tgbotapi.NewMessage(chatId, "Please choose a category:")
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(buttonRows...)
 
-	if _, err := s.Bot.Send(msg); err != nil {
+	if _, err := m.TelegramMessage.Bot.Send(msg); err != nil {
 		zap.L().Error("Failed to send telegram categories selection message", zap.Error(err))
 		return fmt.Errorf("Failed to send bot categories selection message")
 	}
@@ -129,9 +120,9 @@ func (s *TelegramService) SendCategorySelectionKeyboard(chatId int64, entries *[
 	return nil
 }
 
-func (s *TelegramService) RemoveMarkupFromMessage(chatId int64, messageId int) error {
+func (s *TelegramService) RemoveMarkupFromMessage(m *model.Message, chatId int64, messageId int) error {
 	edit := tgbotapi.NewEditMessageReplyMarkup(chatId, messageId, tgbotapi.NewInlineKeyboardMarkup([]tgbotapi.InlineKeyboardButton{}))
-	if _, err := s.Bot.Send(edit); err != nil {
+	if _, err := m.TelegramMessage.Bot.Send(edit); err != nil {
 		zap.L().Error("Failed to clear telegram markup", zap.Error(err))
 		return fmt.Errorf("Failed to clear bot markup")
 	}
