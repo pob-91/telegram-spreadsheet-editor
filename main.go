@@ -71,7 +71,7 @@ func setupLogger() {
 func main() {
 	// load env
 	if err := godotenv.Load(); err != nil {
-		log.Fatalln("Failed to load env file")
+		log.Fatalln("Failed to load env file", zap.Error(err))
 	}
 
 	setupLogger()

@@ -9,6 +9,11 @@ services:
       - "6379:6379"
     networks:
       - internal_network
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   editor:
     image: pob-91/telegram-spreadsheet-editor:latest
@@ -19,8 +24,16 @@ services:
     env_file:
       # Use .env.example to create a .env file to load here
       - .env
+    environment:
+      - VALKEY_HOST=valkey:6379
+    volumes:
+      # Use config.example.yaml to create a config.yaml file to load here
+      - ./config.yaml:/home/nonroot/config.yaml
     networks:
       - internal_network
+    depends_on:
+      valkey:
+        condition: service_healthy
 
 networks:
   internal_network:
