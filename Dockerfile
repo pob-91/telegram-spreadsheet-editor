@@ -8,7 +8,7 @@ RUN --mount=type=bind,source=.,target=/src \
 FROM gcr.io/distroless/static-debian12:nonroot
 
 COPY --from=builder /out/app /app
-COPY .env.defaults /home/nonroot/.env
+COPY --chown=nonroot:nonroot .env.defaults /home/nonroot/.env
 
 USER nonroot
 

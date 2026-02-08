@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"telegram-spreadsheet-editor/inputs"
 	"telegram-spreadsheet-editor/model"
@@ -69,6 +70,22 @@ func setupLogger() {
 }
 
 func main() {
+	wd, _ := os.Getwd()
+	zap.L().Info("Starting edtitor", zap.String("working dir", wd))
+
+	logLevel := os.Getenv(LOG_LEVEL_KEY)
+	if logLevel == "Debug" {
+		entries, _ := os.ReadDir("./")
+		files := make([]string, len(entries))
+		for i, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+			files[i] = e.Name()
+		}
+		zap.L().Debug("Contents of directory", zap.String("contents", strings.Join(files, ", ")))
+	}
+
 	// load env
 	if err := godotenv.Load(); err != nil {
 		log.Fatalln("Failed to load env file", zap.Error(err))
