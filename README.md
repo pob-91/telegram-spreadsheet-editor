@@ -44,7 +44,10 @@ By default, Telegram allows anyone to interact with your bot, whilst it is unlik
 
 **API**
 
-This project modifies a spreadsheet by downloading it, modifying it, and then re-uploading it from your specified source. This means that there must be a GET endpoint for spreadsheet downloads and a PUT for spreadsheet uploads.
+This project modifies a spreadsheet by downloading it, modifying it, and then re-uploading it from your specified source. The list of sources will grow as time allows.
+
+Sources:
+- Nextcloud
 
 **Authentication**
 
@@ -59,14 +62,9 @@ There is an expected spreadsheet format but it is very basic. This project assum
 - There is a column where the values for each category are listed.
 - The row for category and value are the same.
 
+The assumption here is that the spreadsheet will be financial in nature therefore these columns are exposed in the config as cost and earnings. However, this does not *have* to be true.
+
 The columns in the [example spreadsheet](Example.xlsx) are D and E.
-
-**Workarounds**
-
-If this project does not meet your requirements due to one or more of the above assumptions you can try the following:
-
-- If your spreadsheet is not available via GET and PUT, you could write a middleware API layer that exposes it via for this program, open an issue requesting support, or even better add support for your source and raise an MR! [See contributing](#contributing).
-- If your spreadsheet is not in the expected format, and you think it is a reasonable and common format, then open an issue or add support. If your super awesome amazing unique spreadsheet format is not supported, it probably never will be!
 
 ### Running Locally
 
@@ -91,21 +89,23 @@ Make sure you have go installed, install the dependencies (`go mod tidy`) and ru
 
 | NAME | Description | Default | Required |
 |------|-------------|---------|----------|
-| **ENVIRONMENT** | Environment name - development puts the logger into dev mode and changes behaviour of the panic level | "production" | true |
-| **HOST** | Address on which the API listens | "0.0.0.0" | true |
-| **PORT** | Port on which the API listens | "8080" | true |
-| **LOG_LEVEL** | Which level of logs to include | "Warning" | true |
-| **BASIC_AUTH_USER** | Sets basic auth user for spreadsheet GET and PUT | | false |
-| **BASIC_AUTH_PASSWORD** | Sets basic auth password for spreadsheet GET and PUT | | false |
-| **SHEET_BASE_URL** | Base URL (not full path) for the spreadsheet e.g. `https://epic-server.com` | | true |
-| **XLSX_FILE_PATH** | Path for the spreadsheet e.g. `docs/my-cool-sheet.xlsx`. Joined with `SHEET_BASE_URL` | | true |
-| **KEY_COLUMN** | Spreadsheet column where the categories are listed | | true |
-| **VALUE_COLUMN** | Spreadsheet column where the values are listed for each category | | true |
-| **START_ROW** | The row at which to start looking for categories and values. Use this to skip header rows | | false |
-| **TELEGRAM_BOT_TOKEN** | The token for your telegram bot | | true |
-| **TELEGRAM_ALLOWED_USERS** | A comma sepaarated list of telegram user IDs. If set then the API will reject unrecognised users. | | false |
-| **SERVICE_HOST** | Public URL that Telegram can use to communicate with this API. E.g. `https://my-cool-bot.com`. If using `ngrok` then set this variable to the ngrok url | | true |
+| **ENVIRONMENT** | Environment name - development puts the logger into dev mode and changes behaviour of the panic level | "production" | false |
+| **LOG_LEVEL** | Which level of logs to include | "Warning" | false |
+| **CONFIG_PATH** | The path where the config.yaml can be found. See the config section for more. | "/home/nonroot/config.yaml" | false |
 | **VALKEY_HOST** | The valkey URL. If running via docker compose set to valkey:6379. If running locally set to localhost:6379. | | true |
+
+### Config.yaml
+
+The project expects a `config.yaml` file to be present that is read that tells the editor:
+
+- How to access the spreadsheet (source system, location, columns, auth e.t.c)
+- What input to expect (e.g. telegram, whatsapp, text e.t.c)
+
+See [the example config](./config.example.yaml) and the [config parser](./model/config.go) for info on eactly which properties are available.
+
+This project uses the `gcr.io/distroless/static-debian12:nonroot` base docker image and publishes it to this repo's repository.
+If you use this and do not set the `CONFIG_PATH` explicitly then the expected config path is `/home/nonroot/config.yaml`. 
+There is an example of setting this in the [k3s example file](./k3s_example.tf).
 
 ### Contributing
 
@@ -114,6 +114,13 @@ If you want to fix a bug or add a feature to this project then just raise a Pull
 - Please look at the norms and patterns in the project and adhere to them.
 - Please consider users when adding features.
 - It may take me a little while to come and deal with it. Apologies but I am on it!
+
+##### Use Of AI Agents When Contributing
+
+There is nothing inherently wrong in using LLMs to generate code to contribute to this project however, it must follow the style apparent
+in the existing code and the author **MUST** be able to understand and explain every line that is being comitted.
+
+There is a danger with generated code that plausible looking code that is actually poorly designed or not performant slips through.
 
 ### Future
 
@@ -126,6 +133,5 @@ If you want to fix a bug or add a feature to this project then just raise a Pull
 
 ### Long Term Vision
 
-The long term vision for this project is to become a fully fledged financial management system where transactions are logged with descriptions and as much info and context as possible. Then, as well as the basic commands like READ and UPDATE, with LLM integration one could have a very natual chat about one's finances. This would require this API to become an MCP server also that the LLM could call upon to get info about financial transactions. This is actually more secure than other ideas e.g. give an LLM access to your OpenBanking API (madness!).
-
-Overall this project could help people take more control over their finances more easily.
+The long term vision is that this project expands out to be able to interact with a network of tools that can perform all sorts of different tasks. 
+They should be interactable with via a controller or switch that can process natrual language like an LLM.

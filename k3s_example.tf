@@ -54,6 +54,18 @@ resource "kubernetes_service" "finances_valkey" {
 }
 
 # app
+
+resource "kubernetes_config_map" "finances_editor_config" {
+  metadata {
+    name      = "finances-editor-config"
+    namespace = "default"
+  }
+
+  data = {
+    "config.yaml" = file("${path.module}/config.yaml")
+  }
+}
+
 resource "kubernetes_deployment" "finances_editor" {
   metadata {
     name      = "finances-editor"
@@ -134,6 +146,19 @@ resource "kubernetes_deployment" "finances_editor" {
 
           port {
             container_port = 8080
+          }
+
+          volume_mount {
+            name       = "finances-editor-config"
+            mount_path = "/home/nonroot"
+            read_only  = true
+          }
+        }
+
+        volume {
+          name = "finances-editor-config"
+          config_map {
+            name = kubernetes_config_map.finances_editor_config.metadata[0].name
           }
         }
       }

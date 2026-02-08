@@ -3,6 +3,9 @@ package main
 import (
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
+	"telegram-spreadsheet-editor/inputs"
 	"telegram-spreadsheet-editor/model"
 	"telegram-spreadsheet-editor/routes"
 	"telegram-spreadsheet-editor/services"
@@ -11,14 +14,9 @@ import (
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 const (
-	BOT_TOKEN_KEY string = "TELEGRAM_BOT_TOKEN"
-	HOST_KEY      string = "HOST"
-	PORT_KEY      string = "PORT"
 	LOG_LEVEL_KEY string = "LOG_LEVEL"
 )
 
@@ -83,23 +81,13 @@ func main() {
 		return
 	}
 
-	// set up telegram bot
-	token := os.Getenv(BOT_TOKEN_KEY)
-	bot, err := tgbotapi.NewBotAPI(token)
+	// load config
+	config_path := os.Getenv(utils.CONFIG_PATH_KEY)
+	config, err := model.NewConfigFromFile(config_path)
 	if err != nil {
-		zap.L().Panic("Failed to init new telegram bot", zap.Error(err))
+		zap.L().Panic("Could not load config - cannot proceed", zap.Error(err))
 	}
-	bot.Debug = utils.IsDevelopment()
-
-	// delete current webhooks if they exist
-	cfg := tgbotapi.DeleteWebhookConfig{
-		DropPendingUpdates: true,
-	}
-	if _, err := bot.Request(cfg); err != nil {
-		zap.L().DPanic("Failed to delete webhook - cannot proceed.", zap.Error(err))
-	}
-
-	zap.L().Info("Authorised for account", zap.String("account", bot.Self.UserName))
+	model.RegisterConfig(config)
 
 	// dependencies
 	httpClient := utils.HttpClient{}
@@ -108,9 +96,7 @@ func main() {
 		Http: &httpClient,
 	}
 	spreadsheetService := services.ExcelerizeSpreadsheetService{}
-	telegramService := services.TelegramService{
-		Bot: bot,
-	}
+	telegramService := services.TelegramService{}
 	valkeyStorageService := services.NewValkeyStorageService()
 
 	// routes
@@ -121,19 +107,43 @@ func main() {
 		StorageService:     valkeyStorageService,
 	}
 
-	// listen for channel updates
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 60
-
-	updates := bot.GetUpdatesChan(u)
-
-	for update := range updates {
-		if update.Message == nil && update.CallbackQuery == nil {
-			continue
+	// create input handlers for each user's inputs
+	inputHandlers := []inputs.Input{}
+	for _, u := range config.Users {
+		for _, i := range u.Inputs {
+			switch i.GetType() {
+			case model.INPUT_TYPE_TELEGRAM:
+				ti, ok := i.(*model.TelegramInput)
+				if !ok {
+					zap.L().DPanic("For some reason the telegram input is not *TelegramInput")
+					break
+				}
+				in, err := inputs.NewTelegramInput(ti, u.Name)
+				if err != nil {
+					// error logs in NewTelegramInput
+					break
+				}
+				inputHandlers = append(inputHandlers, in)
+			default:
+				zap.L().Error("Unhandled input type", zap.String("type", i.GetType()))
+			}
 		}
-		message := model.Message{
-			TelegramMessage: &update,
+	}
+
+	// start each
+	for _, h := range inputHandlers {
+		go h.Start(dataRoutes.HandleMessage)
+	}
+
+	// listen for shutdown signal
+	zap.L().Info("Listening for termination messages SIGINT & SIGTERM")
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
+	for s := range shutdown {
+		zap.L().Info("Shutting down", zap.String("signal", s.String()))
+		for _, h := range inputHandlers {
+			h.Stop()
 		}
-		dataRoutes.HandleMessage(&message)
+		close(shutdown)
 	}
 }

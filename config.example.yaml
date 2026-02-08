@@ -1,0 +1,33 @@
+users:
+  - name: Rob
+    inputs:
+      - type: telegram
+        userId: 1234
+        tokenEnv: ROB_TELEGRAM_TOKEN
+    spreadsheetSource:
+      type: nextcloud
+      user: admin
+      passwordEnv: ROB_NEXTCLOUD_PASSWORD
+      baseUrl: https://myserver/remote.php/dav/files
+      filePath: Documents/Finances/RobTest.xlsx
+      costNameColumn: D
+      costValueColumn: E
+      earningNameColumn: A
+      earningsValueColumn: B
+      startRow: 2
+  - name: Alice
+    inputs:
+      - type: telegram
+        userId: 1234
+        tokenEnv: ALICE_TELEGRAM_TOKEN
+    spreadsheetSource:
+      type: nextcloud
+      user: admin
+      passwordEnv: ALICE_NEXTCLOUD_PASSWORD
+      baseUrl: https://myserver/remote.php/dav/files
+      filePath: Documents/Finances/AliceTest.xlsx
+      costNameColumn: D
+      costValueColumn: E
+      earningNameColumn: A
+      earningsValueColumn: B
+      startRow: 2
