@@ -1,4 +1,4 @@
-package routes
+package handlers
 
 import (
 	"fmt"
@@ -9,14 +9,14 @@ import (
 	"go.uber.org/zap"
 )
 
-type DataRoutes struct {
+type DataHandler struct {
 	DataService        services.IDataService
 	SpreadsheetService services.ISpreadsheetService
 	MessagingService   services.IMessagingService
 	StorageService     services.IStorageService
 }
 
-func (r *DataRoutes) HandleMessage(message *model.Message) {
+func (r *DataHandler) HandleMessage(message *model.Message) {
 	zap.L().Info("Starting message handle")
 
 	// get command
@@ -224,9 +224,9 @@ func (r *DataRoutes) HandleMessage(message *model.Message) {
 	case model.COMMAND_TYPE_HELP:
 		helpText := `The following commands are available with this epic finance bot.
 PING - Pong.
-LIST - Lists all categories and their totals along with the running total.
-UPDATE - Add a cost to a category.
-READ - Read the value of a category.
+LIST | L - Lists all categories and their totals along with the running total.
+UPDATE | U - Add a cost to a category.
+READ | R - Read the value of a category.
 DETAILS - Get all the costs of a category e.g. 2+4+6.
 REMOVE - Delete the last added amount in a category.
 HELP - Print this help list.`
@@ -248,7 +248,7 @@ HELP - Print this help list.`
 }
 
 // private
-func (r *DataRoutes) getSpreadsheetSource(userName string) model.SpreadsheetSource {
+func (r *DataHandler) getSpreadsheetSource(userName string) model.SpreadsheetSource {
 	config := model.GetConfig()
 	for _, u := range config.Users {
 		if u.Name == userName {

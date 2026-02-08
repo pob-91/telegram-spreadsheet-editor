@@ -68,14 +68,14 @@ func CommandFromMessage(message string, chatId int64, messageId int, userId int6
 			MessageId: messageId,
 			UserId:    userId,
 		}, nil
-	case norm == "list":
+	case norm == "list" || norm == "l":
 		return &Command{
 			Type:      COMMAND_TYPE_LIST,
 			ChatId:    chatId,
 			MessageId: messageId,
 			UserId:    userId,
 		}, nil
-	case norm == "update":
+	case norm == "update" || norm == "u":
 		return &Command{
 			Type:      COMMAND_TYPE_UPDATE,
 			ChatId:    chatId,
@@ -84,7 +84,7 @@ func CommandFromMessage(message string, chatId int64, messageId int, userId int6
 		}, nil
 	case utils.IsFinancial(norm):
 		return commandFromFinancial(norm, chatId, messageId, userId)
-	case norm == "read":
+	case norm == "read" || norm == "r":
 		return &Command{
 			Type:      COMMAND_TYPE_READ,
 			ChatId:    chatId,

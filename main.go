@@ -6,9 +6,9 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"telegram-spreadsheet-editor/handlers"
 	"telegram-spreadsheet-editor/inputs"
 	"telegram-spreadsheet-editor/model"
-	"telegram-spreadsheet-editor/routes"
 	"telegram-spreadsheet-editor/services"
 	"telegram-spreadsheet-editor/utils"
 
@@ -117,7 +117,7 @@ func main() {
 	valkeyStorageService := services.NewValkeyStorageService()
 
 	// routes
-	dataRoutes := routes.DataRoutes{
+	dataHandler := handlers.DataHandler{
 		DataService:        &dataService,
 		SpreadsheetService: &spreadsheetService,
 		MessagingService:   &telegramService,
@@ -149,7 +149,7 @@ func main() {
 
 	// start each
 	for _, h := range inputHandlers {
-		go h.Start(dataRoutes.HandleMessage)
+		go h.Start(dataHandler.HandleMessage)
 	}
 
 	// listen for shutdown signal
