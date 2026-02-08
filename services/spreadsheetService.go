@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -15,22 +14,21 @@ import (
 )
 
 type ISpreadsheetService interface {
-	ListCategoriesAndValues(sheet io.Reader) (*[]model.Entry, error)
-	AddValueForCategory(sheet io.Reader, category string, value float32) (io.Reader, *string, error)
-	ReadValueForCategory(sheet io.Reader, category string, details bool) (*string, error)
-	RemoveLastValueForCategory(sheet io.Reader, category string) (*RemovedResult, error)
+	ListCategoriesAndValues(source model.SpreadsheetSource, sheet io.Reader) (*[]model.Entry, error)
+	AddValueForCategory(source model.SpreadsheetSource, sheet io.Reader, category string, value float32) (io.Reader, *string, error)
+	ReadValueForCategory(source model.SpreadsheetSource, sheet io.Reader, category string, details bool) (*string, error)
+	RemoveLastValueForCategory(source model.SpreadsheetSource, sheet io.Reader, category string) (*RemovedResult, error)
 }
 
 type ExcelerizeSpreadsheetService struct{}
 
 const (
-	KEY_COLUMN_KEY       string = "KEY_COLUMN"
-	VALUE_COLUMN_KEY     string = "VALUE_COLUMN"
-	MAX_EMPTY_CELL_COUNT uint   = 5
-	START_ROW_KEY        string = "START_ROW"
+	MAX_EMPTY_CELL_COUNT uint = 5
 )
 
-func (s *ExcelerizeSpreadsheetService) ListCategoriesAndValues(sheet io.Reader) (*[]model.Entry, error) {
+func (s *ExcelerizeSpreadsheetService) ListCategoriesAndValues(source model.SpreadsheetSource, sheet io.Reader) (*[]model.Entry, error) {
+	bs := getBaseSpreadsheetSource(source)
+
 	f, err := excelize.OpenReader(sheet, excelize.Options{})
 	if err != nil {
 		zap.L().Error("Failed to open spreadsheet", zap.Error(err))
@@ -50,27 +48,14 @@ func (s *ExcelerizeSpreadsheetService) ListCategoriesAndValues(sheet io.Reader) 
 	sheetName := f.GetSheetName(f.SheetCount - 1)
 
 	// iterate key column until getting empty cells
-	keyColumn := os.Getenv(KEY_COLUMN_KEY)
-	valueColumn := os.Getenv(VALUE_COLUMN_KEY)
 	emptyCellCount := uint(0)
-
 	currentRow := uint(1)
-	startRowStr := os.Getenv(START_ROW_KEY)
-	if len(startRowStr) > 0 {
-		i, err := strconv.Atoi(startRowStr)
-		if err != nil {
-			zap.L().Warn("Failed to parse START_ROW env", zap.Error(err), zap.String("value", startRowStr))
-		} else {
-			currentRow = uint(i)
-		}
-	}
-
 	for {
 		if emptyCellCount >= MAX_EMPTY_CELL_COUNT {
 			break
 		}
 
-		categoryCell := fmt.Sprintf("%s%d", keyColumn, currentRow)
+		categoryCell := fmt.Sprintf("%s%d", bs.CostNameColumn, currentRow)
 		category, err := f.GetCellValue(sheetName, categoryCell)
 		if err != nil {
 			zap.L().Error("Failed to get value for category cell", zap.String("cell", categoryCell), zap.Error(err))
@@ -86,7 +71,7 @@ func (s *ExcelerizeSpreadsheetService) ListCategoriesAndValues(sheet io.Reader) 
 
 		emptyCellCount = 0
 
-		valueCell := fmt.Sprintf("%s%d", valueColumn, currentRow)
+		valueCell := fmt.Sprintf("%s%d", bs.CostValueColumn, currentRow)
 		value, err := f.CalcCellValue(sheetName, valueCell)
 		if err != nil {
 			zap.L().Error("Failed to get value for value cell", zap.String("cell", categoryCell), zap.Error(err))
@@ -104,7 +89,9 @@ func (s *ExcelerizeSpreadsheetService) ListCategoriesAndValues(sheet io.Reader) 
 	return &entries, nil
 }
 
-func (s *ExcelerizeSpreadsheetService) AddValueForCategory(sheet io.Reader, category string, value float32) (io.Reader, *string, error) {
+func (s *ExcelerizeSpreadsheetService) AddValueForCategory(source model.SpreadsheetSource, sheet io.Reader, category string, value float32) (io.Reader, *string, error) {
+	bs := getBaseSpreadsheetSource(source)
+
 	f, err := excelize.OpenReader(sheet, excelize.Options{})
 	if err != nil {
 		zap.L().Error("Failed to open spreadsheet", zap.Error(err))
@@ -122,14 +109,13 @@ func (s *ExcelerizeSpreadsheetService) AddValueForCategory(sheet io.Reader, cate
 	sheetName := f.GetSheetName(f.SheetCount - 1)
 
 	// get correct row
-	row, err := getRowForCategory(f, category, sheetName)
+	row, err := getRowForCategory(bs, f, category, sheetName)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// get the cell formula
-	valueColumn := os.Getenv(VALUE_COLUMN_KEY)
-	cell := fmt.Sprintf("%s%d", valueColumn, *row)
+	cell := fmt.Sprintf("%s%d", bs.CostValueColumn, *row)
 	form, err := f.GetCellFormula(sheetName, cell)
 	if err != nil {
 		zap.L().Error("Failed to get cell formula", zap.Error(err))
@@ -234,7 +220,9 @@ func (s *ExcelerizeSpreadsheetService) AddValueForCategory(sheet io.Reader, cate
 	return bytes.NewReader(buffer.Bytes()), &updatedVal, nil
 }
 
-func (s *ExcelerizeSpreadsheetService) ReadValueForCategory(sheet io.Reader, category string, details bool) (*string, error) {
+func (s *ExcelerizeSpreadsheetService) ReadValueForCategory(source model.SpreadsheetSource, sheet io.Reader, category string, details bool) (*string, error) {
+	bs := getBaseSpreadsheetSource(source)
+
 	f, err := excelize.OpenReader(sheet, excelize.Options{})
 	if err != nil {
 		zap.L().Error("Failed to open spreadsheet", zap.Error(err))
@@ -252,14 +240,13 @@ func (s *ExcelerizeSpreadsheetService) ReadValueForCategory(sheet io.Reader, cat
 	sheetName := f.GetSheetName(f.SheetCount - 1)
 
 	// get correct row
-	row, err := getRowForCategory(f, category, sheetName)
+	row, err := getRowForCategory(bs, f, category, sheetName)
 	if err != nil {
 		return nil, err
 	}
 
 	// get the cell value
-	valueColumn := os.Getenv(VALUE_COLUMN_KEY)
-	cell := fmt.Sprintf("%s%d", valueColumn, *row)
+	cell := fmt.Sprintf("%s%d", bs.CostValueColumn, *row)
 
 	if details {
 		// get the formula
@@ -296,7 +283,9 @@ type RemovedResult struct {
 	NewValue      string
 }
 
-func (s *ExcelerizeSpreadsheetService) RemoveLastValueForCategory(sheet io.Reader, category string) (*RemovedResult, error) {
+func (s *ExcelerizeSpreadsheetService) RemoveLastValueForCategory(source model.SpreadsheetSource, sheet io.Reader, category string) (*RemovedResult, error) {
+	bs := getBaseSpreadsheetSource(source)
+
 	f, err := excelize.OpenReader(sheet, excelize.Options{})
 	if err != nil {
 		zap.L().Error("Failed to open spreadsheet", zap.Error(err))
@@ -314,14 +303,13 @@ func (s *ExcelerizeSpreadsheetService) RemoveLastValueForCategory(sheet io.Reade
 	sheetName := f.GetSheetName(f.SheetCount - 1)
 
 	// get correct row
-	row, err := getRowForCategory(f, category, sheetName)
+	row, err := getRowForCategory(bs, f, category, sheetName)
 	if err != nil {
 		return nil, err
 	}
 
 	// get the cell formula
-	valueColumn := os.Getenv(VALUE_COLUMN_KEY)
-	cell := fmt.Sprintf("%s%d", valueColumn, *row)
+	cell := fmt.Sprintf("%s%d", bs.CostValueColumn, *row)
 	form, err := f.GetCellFormula(sheetName, cell)
 	if err != nil {
 		zap.L().Error("Failed to get cell formula", zap.Error(err))
@@ -399,15 +387,26 @@ func (s *ExcelerizeSpreadsheetService) RemoveLastValueForCategory(sheet io.Reade
 
 // private
 
-func getRowForCategory(file *excelize.File, category string, sheetName string) (*uint, error) {
+func getBaseSpreadsheetSource(source model.SpreadsheetSource) *model.BaseSpreadsheetSource {
+	switch s := source.(type) {
+	case *model.NextcloudSpreadsheetSource:
+		return &s.BaseSpreadsheetSource
+	case *model.BaseSpreadsheetSource:
+		return s
+	default:
+		zap.L().Panic("Spreadsheet source does not inherit from base spreadsheet source", zap.String("type", source.GetType()))
+		return nil
+	}
+}
+
+func getRowForCategory(source *model.BaseSpreadsheetSource, file *excelize.File, category string, sheetName string) (*uint, error) {
 	// iterate key column until find the category
-	keyColumn := os.Getenv(KEY_COLUMN_KEY)
 	currentRow := uint(1)
 	comparison := strings.ToLower(strings.ReplaceAll(category, " ", ""))
 	emptyCellCount := uint(0)
 
 	for {
-		cell := fmt.Sprintf("%s%d", keyColumn, currentRow)
+		cell := fmt.Sprintf("%s%d", source.CostNameColumn, currentRow)
 		val, err := file.GetCellValue(sheetName, cell)
 		if err != nil {
 			zap.L().Error("Failed to get value for cell", zap.String("cell", cell), zap.Error(err))

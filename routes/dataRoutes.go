@@ -51,7 +51,7 @@ func (r *DataRoutes) HandleMessage(message *model.Message) {
 			r.MessagingService.SendTextMessage(message, command.ChatId, "Something went wrong...")
 			return
 		}
-		entries, err := r.SpreadsheetService.ListCategoriesAndValues(sheet)
+		entries, err := r.SpreadsheetService.ListCategoriesAndValues(source, sheet)
 		if err != nil {
 			r.MessagingService.SendTextMessage(message, command.ChatId, "Something went wrong...")
 			return
@@ -64,7 +64,7 @@ func (r *DataRoutes) HandleMessage(message *model.Message) {
 			r.MessagingService.SendTextMessage(message, command.ChatId, "Something went wrong...")
 			return
 		}
-		entries, err := r.SpreadsheetService.ListCategoriesAndValues(sheet)
+		entries, err := r.SpreadsheetService.ListCategoriesAndValues(source, sheet)
 		if err != nil {
 			r.MessagingService.SendTextMessage(message, command.ChatId, "Something went wrong...")
 			return
@@ -109,7 +109,7 @@ func (r *DataRoutes) HandleMessage(message *model.Message) {
 		}
 
 		// update sheet
-		updated, newVal, err := r.SpreadsheetService.AddValueForCategory(sheet, *fullCommand.UpdateData.Category, *fullCommand.UpdateData.Value)
+		updated, newVal, err := r.SpreadsheetService.AddValueForCategory(source, sheet, *fullCommand.UpdateData.Category, *fullCommand.UpdateData.Value)
 		if err != nil {
 			r.MessagingService.SendTextMessage(message, command.ChatId, "Something went wrong...")
 			return
@@ -130,7 +130,7 @@ func (r *DataRoutes) HandleMessage(message *model.Message) {
 			r.MessagingService.SendTextMessage(message, command.ChatId, "Something went wrong...")
 			return
 		}
-		entries, err := r.SpreadsheetService.ListCategoriesAndValues(sheet)
+		entries, err := r.SpreadsheetService.ListCategoriesAndValues(source, sheet)
 		if err != nil {
 			r.MessagingService.SendTextMessage(message, command.ChatId, "Something went wrong...")
 			return
@@ -146,7 +146,7 @@ func (r *DataRoutes) HandleMessage(message *model.Message) {
 			r.MessagingService.SendTextMessage(message, command.ChatId, "Something went wrong...")
 			return
 		}
-		val, err := r.SpreadsheetService.ReadValueForCategory(sheet, command.ReadData.Category, false)
+		val, err := r.SpreadsheetService.ReadValueForCategory(source, sheet, command.ReadData.Category, false)
 		if err != nil {
 			r.MessagingService.SendTextMessage(message, command.ChatId, "Something went wrong...")
 			return
@@ -160,7 +160,7 @@ func (r *DataRoutes) HandleMessage(message *model.Message) {
 			r.MessagingService.SendTextMessage(message, command.ChatId, "Something went wrong...")
 			return
 		}
-		entries, err := r.SpreadsheetService.ListCategoriesAndValues(sheet)
+		entries, err := r.SpreadsheetService.ListCategoriesAndValues(source, sheet)
 		if err != nil {
 			r.MessagingService.SendTextMessage(message, command.ChatId, "Something went wrong...")
 			return
@@ -177,7 +177,7 @@ func (r *DataRoutes) HandleMessage(message *model.Message) {
 			r.MessagingService.SendTextMessage(message, command.ChatId, "Something went wrong...")
 			return
 		}
-		val, err := r.SpreadsheetService.ReadValueForCategory(sheet, command.DetailsData.Category, true)
+		val, err := r.SpreadsheetService.ReadValueForCategory(source, sheet, command.DetailsData.Category, true)
 		if err != nil {
 			r.MessagingService.SendTextMessage(message, command.ChatId, "Something went wrong...")
 			return
@@ -191,7 +191,7 @@ func (r *DataRoutes) HandleMessage(message *model.Message) {
 			r.MessagingService.SendTextMessage(message, command.ChatId, "Something went wrong...")
 			return
 		}
-		entries, err := r.SpreadsheetService.ListCategoriesAndValues(sheet)
+		entries, err := r.SpreadsheetService.ListCategoriesAndValues(source, sheet)
 		if err != nil {
 			r.MessagingService.SendTextMessage(message, command.ChatId, "Something went wrong...")
 			return
@@ -209,7 +209,7 @@ func (r *DataRoutes) HandleMessage(message *model.Message) {
 			return
 		}
 		// remove last value
-		res, err := r.SpreadsheetService.RemoveLastValueForCategory(sheet, command.RemoveData.Category)
+		res, err := r.SpreadsheetService.RemoveLastValueForCategory(source, sheet, command.RemoveData.Category)
 		if err != nil {
 			r.MessagingService.SendTextMessage(message, command.ChatId, "Something went wrong...")
 			return

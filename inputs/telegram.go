@@ -51,6 +51,8 @@ func (i *TelegramInput) Start(handler func(*model.Message)) {
 	u.Timeout = 60
 	updates := i.Bot.GetUpdatesChan(u)
 
+	zap.L().Info("Starting telegram input", zap.String("user", i.UserName))
+
 	for update := range updates {
 		if update.Message == nil && update.CallbackQuery == nil {
 			continue

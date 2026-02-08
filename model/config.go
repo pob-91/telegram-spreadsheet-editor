@@ -44,7 +44,12 @@ type SpreadsheetSource interface {
 }
 
 type BaseSpreadsheetSource struct {
-	Type string `yaml:"type"`
+	Type                string `yaml:"type"`
+	CostNameColumn      string `yaml:"costNameColumn"`
+	CostValueColumn     string `yaml:"costValueColumn"`
+	EarningNameColumn   string `yaml:"earningNameColumn"`
+	EarningsValueColumn string `yaml:"earningsValueColumn"`
+	StartRow            int    `yaml:"startRow"`
 }
 
 func (b BaseSpreadsheetSource) GetType() string {
@@ -57,11 +62,6 @@ type NextcloudSpreadsheetSource struct {
 	PasswordEnv           string `yaml:"passwordEnv"`
 	BaseUrl               string `yaml:"baseUrl"`
 	FilePath              string `yaml:"filePath"`
-	CostNameColumn        string `yaml:"costNameColumn"`
-	CostValueColumn       string `yaml:"costValueColumn"`
-	EarningNameColumn     string `yaml:"earningNameColumn"`
-	EarningsValueColumn   string `yaml:"earningsValueColumn"`
-	StartRow              int    `yaml:"startRow"`
 }
 
 type User struct {

@@ -136,6 +136,7 @@ func main() {
 	}
 
 	// listen for shutdown signal
+	zap.L().Info("Listening for termination messages SIGINT & SIGTERM")
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
 	for s := range shutdown {
