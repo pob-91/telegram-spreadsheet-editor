@@ -150,7 +150,8 @@ resource "kubernetes_deployment" "finances_editor" {
 
           volume_mount {
             name       = "finances-editor-config"
-            mount_path = "/home/nonroot/"
+            mount_path = "/home/nonroot/config.yaml"
+            sub_path   = "config.yaml"
             read_only  = true
           }
         }

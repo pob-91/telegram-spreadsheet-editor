@@ -71,7 +71,7 @@ func setupLogger() {
 
 func main() {
 	wd, _ := os.Getwd()
-	zap.L().Info("Starting edtitor", zap.String("working dir", wd))
+	log.Printf("Starting edtitor wd: %s\n", wd)
 
 	logLevel := os.Getenv(LOG_LEVEL_KEY)
 	if logLevel == "Debug" {
@@ -83,12 +83,12 @@ func main() {
 			}
 			files[i] = e.Name()
 		}
-		zap.L().Debug("Contents of directory", zap.String("contents", strings.Join(files, ", ")))
+		log.Printf("Contents of directory %s\n", strings.Join(files, ", "))
 	}
 
 	// load env
 	if err := godotenv.Load(); err != nil {
-		log.Fatalln("Failed to load env file", zap.Error(err))
+		log.Fatalln("Failed to load env file: %w", err)
 	}
 
 	setupLogger()
