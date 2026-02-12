@@ -2,9 +2,9 @@ package services
 
 import (
 	"fmt"
+	e "jarvis/tool_spreadsheet_editor/errors"
+	"jarvis/tool_spreadsheet_editor/model"
 	"strings"
-	e "telegram-spreadsheet-editor/errors"
-	"telegram-spreadsheet-editor/model"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"go.uber.org/zap"

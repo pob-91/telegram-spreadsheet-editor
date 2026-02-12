@@ -1,6 +1,6 @@
 package inputs
 
-import "telegram-spreadsheet-editor/model"
+import "jarvis/tool_spreadsheet_editor/model"
 
 type Input interface {
 	GetType() string

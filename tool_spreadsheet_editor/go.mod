@@ -1,4 +1,4 @@
-module telegram-spreadsheet-editor
+module jarvis/tool_spreadsheet_editor
 
 go 1.25
 

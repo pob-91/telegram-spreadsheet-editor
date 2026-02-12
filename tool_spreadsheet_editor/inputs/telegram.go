@@ -2,8 +2,8 @@ package inputs
 
 import (
 	"fmt"
+	"jarvis/tool_spreadsheet_editor/model"
 	"os"
-	"telegram-spreadsheet-editor/model"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"go.uber.org/zap"

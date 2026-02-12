@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"jarvis/tool_spreadsheet_editor/errors"
+	"jarvis/tool_spreadsheet_editor/model"
 	"os"
 	"strconv"
-	"telegram-spreadsheet-editor/errors"
-	"telegram-spreadsheet-editor/model"
 	"time"
 
 	"github.com/valkey-io/valkey-go"

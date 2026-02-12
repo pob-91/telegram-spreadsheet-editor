@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"fmt"
-	"telegram-spreadsheet-editor/errors"
-	"telegram-spreadsheet-editor/model"
-	"telegram-spreadsheet-editor/services"
+	"jarvis/tool_spreadsheet_editor/errors"
+	"jarvis/tool_spreadsheet_editor/model"
+	"jarvis/tool_spreadsheet_editor/services"
 
 	"go.uber.org/zap"
 )

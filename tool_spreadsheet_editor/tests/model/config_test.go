@@ -1,7 +1,7 @@
 package tests
 
 import (
-	"telegram-spreadsheet-editor/model"
+	"jarvis/tool_spreadsheet_editor/model"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

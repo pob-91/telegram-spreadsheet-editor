@@ -2,10 +2,10 @@ package model
 
 import (
 	"fmt"
+	e "jarvis/tool_spreadsheet_editor/errors"
+	"jarvis/tool_spreadsheet_editor/utils"
 	"strconv"
 	"strings"
-	e "telegram-spreadsheet-editor/errors"
-	"telegram-spreadsheet-editor/utils"
 
 	"go.uber.org/zap"
 )
